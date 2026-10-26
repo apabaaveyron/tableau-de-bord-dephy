@@ -1,0 +1,1292 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tableau de bord DEPHY</title>
+<style>
+:root{
+  color-scheme:light;
+  --bg:#f5f4f0;--surface:#fff;--sunk:#efede7;--ink:#1d1c1a;--ink-2:#55534e;--muted:#868379;--rule:#e2dfd7;--rule-2:#cfcbc1;
+  --accent:#2f5d3a;--accent-ink:#fff;--s1:#2a78d6;--s2:#eb6834;--ref:#77746c;--warn-bg:#fbf1dc;--warn-ink:#7a4a00;--crit:#b3261e;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  color-scheme:dark;
+  --bg:#141413;--surface:#1c1c1a;--sunk:#232321;--ink:#f0efec;--ink-2:#c3c2b7;--muted:#8f8d86;--rule:#2f2e2b;--rule-2:#45433f;
+  --accent:#8dbb8f;--accent-ink:#10200f;--s1:#3987e5;--s2:#d95926;--ref:#a09e96;--warn-bg:#35290f;--warn-ink:#f3c97a;--crit:#ef8a83;
+}}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#141413;--surface:#1c1c1a;--sunk:#232321;--ink:#f0efec;--ink-2:#c3c2b7;--muted:#8f8d86;--rule:#2f2e2b;--rule-2:#45433f;
+  --accent:#8dbb8f;--accent-ink:#10200f;--s1:#3987e5;--s2:#d95926;--ref:#a09e96;--warn-bg:#35290f;--warn-ink:#f3c97a;--crit:#ef8a83;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+.num,td.n,th.n{font-variant-numeric:tabular-nums}
+button,select,input{font:inherit;color:inherit}
+.wrap{max-width:1240px;margin:0 auto;padding:0 20px}
+header.top{border-bottom:1px solid var(--rule);background:var(--surface)}
+header.top .wrap{display:flex;align-items:center;gap:16px;min-height:58px;flex-wrap:wrap}
+.brand{display:flex;flex-direction:column;line-height:1.15}
+.brand small{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.brand b{font-size:17px;font-weight:600}
+.fileinfo{margin-left:auto;color:var(--muted);font-size:12.5px;text-align:right}
+.btn{border:1px solid var(--rule-2);background:var(--surface);border-radius:6px;padding:6px 12px;cursor:pointer}
+.btn:hover{border-color:var(--ink-2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.small{padding:3px 9px;font-size:12.5px}
+select{border:1px solid var(--rule-2);background:var(--surface);border-radius:6px;padding:5px 8px;max-width:100%}
+
+/* chargement */
+#loader{padding:56px 0}
+.drop{background:var(--surface);border:1.5px dashed var(--rule-2);border-radius:10px;padding:40px 32px;max-width:680px;margin:0 auto}
+.drop.over{border-color:var(--accent);background:var(--sunk)}
+.drop h1{font-size:22px;font-weight:600;margin:0 0 6px}
+.drop p{color:var(--ink-2);margin:0 0 18px}
+.drop .actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.drop .hint{font-size:12.5px;color:var(--muted);margin:0}
+.progress{margin-top:18px;display:none}
+.progress.on{display:block}
+.bar{height:6px;background:var(--sunk);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+.progress span{display:block;font-size:12.5px;color:var(--ink-2);margin-top:6px}
+.err{color:var(--crit);margin-top:14px;font-weight:500}
+
+/* barre de filtres + onglets */
+.controls{display:flex;align-items:end;gap:18px;flex-wrap:wrap;padding:16px 0 0}
+.field{display:flex;flex-direction:column;gap:3px}
+.field label{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+nav.tabs{display:flex;gap:4px;border-bottom:1px solid var(--rule);margin-top:16px}
+nav.tabs button{border:0;background:none;padding:10px 14px;cursor:pointer;color:var(--ink-2);border-bottom:2px solid transparent;margin-bottom:-1px;font-weight:500}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.view{padding:20px 0 48px}
+
+/* blocs */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:20px}
+.tile{background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:12px 14px}
+.tile .k{font-size:12px;color:var(--muted)}
+.tile .v{font-size:24px;font-weight:600;margin-top:2px}
+.tile .s{font-size:12px;color:var(--ink-2)}
+.card{background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:16px 18px;margin-bottom:16px}
+.card h2{font-size:15px;font-weight:600;margin:0 0 2px}
+.card .sub{font-size:12.5px;color:var(--muted);margin:0 0 12px}
+.cardhead{display:flex;align-items:start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.cardhead .sub{margin:0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(460px,1fr));gap:16px}
+.grid2 .card{margin-bottom:0}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:10px;border-radius:2px;display:inline-block}
+.sw.line{height:0;border-top:2px solid var(--s1);border-radius:0}
+.sw.dash{height:0;border-top:2px dashed var(--ref);border-radius:0}
+.sw.tick{width:2px;height:12px;background:var(--ink-2);border-radius:0}
+
+/* tableaux */
+.tscroll{overflow-x:auto;margin:0 -4px}
+table{border-collapse:collapse;width:100%}
+th,td{padding:7px 8px;text-align:left;vertical-align:top;border-bottom:1px solid var(--rule)}
+th{font-size:11.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;border-bottom-color:var(--rule-2)}
+td.n,th.n{text-align:right;white-space:nowrap}
+td .ref{display:block;font-size:11.5px;color:var(--muted)}
+tbody tr.click{cursor:pointer}
+tbody tr.click:hover{background:var(--sunk)}
+td.name{min-width:210px}
+table.compact{font-size:13px}
+table.compact td.name{min-width:120px}
+table.compact th{white-space:normal}
+table.compact th,table.compact td{padding:7px 5px}
+td.nw{white-space:nowrap}
+td.name b{font-weight:600}
+td.name small{display:block;color:var(--muted);font-size:11.5px}
+tr.refrow td{color:var(--ink-2);background:var(--sunk);font-style:normal}
+.tag{display:inline-block;font-size:11.5px;padding:1px 7px;border-radius:10px;border:1px solid var(--rule-2);color:var(--ink-2);white-space:nowrap}
+.tag.warn{border-color:transparent;background:var(--warn-bg);color:var(--warn-ink)}
+.tag.ok{color:var(--muted)}
+
+/* indicateurs ferme */
+table.ind td{vertical-align:middle}
+table.ind td.lab{color:var(--ink-2)}
+table.ind tr.sub td.lab{padding-left:22px;font-size:13px}
+table.ind tr.head td{font-weight:600;color:var(--ink)}
+.bullet{position:relative;height:10px;width:100%;min-width:90px;background:var(--sunk);border-radius:2px}
+.bullet i{position:absolute;left:0;top:0;bottom:0;background:var(--s1);border-radius:0 2px 2px 0}
+.bullet b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink-2)}
+.delta{font-size:12px;color:var(--muted);white-space:nowrap}
+
+.farmhead{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:start;margin-bottom:16px}
+.farmhead h1{font-size:24px;font-weight:600;margin:0}
+.facts{display:flex;flex-wrap:wrap;gap:6px 18px;color:var(--ink-2);margin-top:6px;font-size:13px}
+.facts b{color:var(--ink);font-weight:600}
+.alerts{background:var(--warn-bg);color:var(--warn-ink);border-radius:8px;padding:12px 16px;margin-bottom:16px}
+.alerts h3{margin:0 0 4px;font-size:14px}
+.alerts ul{margin:0;padding-left:18px}
+.alerts p{margin:0 0 6px;font-weight:600}
+
+.multi{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px 22px}
+.chart h3{font-size:13px;font-weight:600;margin:0 0 4px;color:var(--ink-2)}
+.chart svg{display:block;width:100%;overflow:visible}
+svg text{fill:var(--muted);font-size:11px;font-family:inherit}
+svg .grid{stroke:var(--rule);stroke-width:1}
+svg .axis{stroke:var(--rule-2);stroke-width:1}
+svg .cross{stroke:var(--ink-2);stroke-width:1;stroke-dasharray:2 3}
+svg .lbl{fill:var(--ink-2);font-size:11.5px}
+svg .val{fill:var(--ink);font-size:11.5px}
+
+#tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12.5px;padding:7px 10px;border-radius:6px;z-index:20;display:none;max-width:280px;line-height:1.4}
+#tip b{font-weight:600}
+#tip .row{display:flex;justify-content:space-between;gap:14px}
+
+.empty{color:var(--muted);padding:12px 0}
+details.more{margin-top:14px;border-top:1px solid var(--rule);padding-top:10px}
+details.more summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:13px}
+details.more[open] summary{margin-bottom:8px}
+table.ind tr.sub2 td.lab{padding-left:38px;font-size:12.5px}
+tr.detailrow>td{background:var(--sunk);padding:14px}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px 22px}
+.dgrid h4,.dwide h4{margin:0 0 4px;font-size:13px;font-weight:600}
+.dgrid table.ind td,.dgrid table.ind th{padding:4px 6px;font-size:12.5px;white-space:normal}
+.dwide{grid-column:1/-1}
+.chev{display:inline-block;width:6px;height:6px;border-right:1.5px solid var(--muted);border-bottom:1.5px solid var(--muted);transform:rotate(-45deg);margin:0 8px 2px 0;transition:transform .15s}
+tr[aria-expanded="true"] .chev{transform:rotate(45deg)}
+input.lexq{border:1px solid var(--rule-2);background:var(--surface);border-radius:6px;padding:5px 8px;width:260px;max-width:100%}
+footer{color:var(--muted);font-size:12px;border-top:1px solid var(--rule);padding:14px 0 28px}
+/* listes avec recherche */
+.combo{position:relative;width:260px;max-width:100%}
+.combo input{width:100%;border:1px solid var(--rule-2);background:var(--surface);border-radius:6px;padding:5px 28px 5px 8px}
+.combo input:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.combo::after{content:'';position:absolute;right:11px;top:50%;width:6px;height:6px;border-right:1.5px solid var(--ink-2);border-bottom:1.5px solid var(--ink-2);transform:translateY(-70%) rotate(45deg);pointer-events:none}
+.combo ul{position:absolute;z-index:15;left:0;min-width:100%;width:max-content;max-width:min(420px,90vw);top:calc(100% + 4px);max-height:320px;overflow:auto;margin:0;padding:4px;list-style:none;background:var(--surface);border:1px solid var(--rule-2);border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.14)}
+.combo li{padding:6px 8px;border-radius:4px;cursor:pointer}
+.combo li[aria-selected="true"]{background:var(--sunk)}
+.combo li.cur{font-weight:600}
+.combo li.none{color:var(--muted);cursor:default}
+[hidden]{display:none!important}
+
+@media (max-width:640px){
+  .wrap{padding:0 16px}
+  .grid2{grid-template-columns:1fr}
+  .grid2>.card{min-width:0}
+  table.ind th:nth-child(4),table.ind td:nth-child(4){display:none}
+  table.ind th,table.ind td{padding:6px 5px}
+  .fileinfo{margin-left:0;text-align:left}
+  .drop{padding:28px 20px}
+}
+@media print{
+  header.top .btn,.controls,nav.tabs,.noprint,#loader{display:none!important}
+  body{background:#fff}
+  .card,.tile{break-inside:avoid;border-color:#ccc}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><small>DEPHY maraîchage</small><b>Tableau de bord</b></div>
+    <div class="fileinfo" id="fileinfo"></div>
+    <button class="btn small" id="changeFile" hidden>Changer de fichier</button>
+  </div>
+</header>
+
+<section id="loader">
+  <div class="wrap">
+    <div class="drop" id="drop">
+      <h1>Ouvrir le tableau de bord DEPHY</h1>
+      <p>Glissez ici le fichier Excel du tableau de bord (<span class="num">Tableau_bord_MARAICHAGE_….xlsx</span>), ou allez le chercher.</p>
+      <div class="actions">
+        <button class="btn primary" id="reopenDir" hidden></button>
+        <button class="btn" id="pickDir" hidden>Choisir le dossier</button>
+        <button class="btn" id="pickFile">Ouvrir un fichier</button>
+        <input type="file" id="fileInput" accept=".xlsx,.xlsm" hidden>
+      </div>
+      <p class="hint" id="dirHint" hidden>Avec « Choisir le dossier », la page ouvre le tableau de bord le plus récent du dossier, et elle s'en souviendra la prochaine fois.</p>
+      <p class="hint">Le fichier est lu sur cet ordinateur : rien ne part sur internet.</p>
+      <div class="progress" id="progress"><div class="bar"><i id="progressBar"></i></div><span id="progressText"></span></div>
+      <div class="err" id="err" hidden></div>
+    </div>
+  </div>
+</section>
+
+<main id="app" hidden>
+  <div class="wrap">
+    <div class="controls">
+      <div class="field"><label for="selIR">Groupe</label><select id="selIR"></select></div>
+      <div class="field" id="fCamp"><label for="selCamp">Campagne</label><select id="selCamp"></select></div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="groupe" aria-selected="true">Le groupe</button>
+      <button role="tab" data-tab="ferme" aria-selected="false">Une ferme</button>
+      <button role="tab" data-tab="cultures" aria-selected="false">Les cultures</button>
+      <button role="tab" data-tab="lexique" aria-selected="false">Lexique</button>
+    </nav>
+    <div class="view" id="view"></div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap" id="foot">Données DEPHY strictement confidentielles : à ne pas diffuser en dehors du réseau.</div>
+</footer>
+<div id="tip"></div>
+
+<script id="core">
+/* Lecture d'un .xlsx sans bibliothèque : index ZIP, décompression native (DecompressionStream),
+   puis lecture des lignes au fil du flux — l'onglet des cultures fait ~115 Mo de XML. */
+const XlsxLite = (() => {
+  const td = new TextDecoder();
+  const ENT = {amp:'&', lt:'<', gt:'>', quot:'"', apos:"'"};
+  const unesc = s => (s.indexOf('&') < 0 && s.indexOf('_x') < 0) ? s : s
+    .replace(/&(#x[0-9a-f]+|#\d+|\w+);/gi, (m, c) => c[0] === '#'
+      ? String.fromCodePoint(c[1] === 'x' || c[1] === 'X' ? parseInt(c.slice(2), 16) : +c.slice(1))
+      : (ENT[c] ?? m))
+    .replace(/_x([0-9A-F]{4})_/g, (m, h) => String.fromCharCode(parseInt(h, 16)));
+
+  async function index(blob) {
+    const tailLen = Math.min(blob.size, 65557);
+    const tail = new DataView(await blob.slice(blob.size - tailLen).arrayBuffer());
+    let eocd = -1;
+    for (let i = tailLen - 22; i >= 0; i--) if (tail.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+    if (eocd < 0) throw new Error("Ce fichier n'est pas un classeur Excel (.xlsx).");
+    const n = tail.getUint16(eocd + 10, true), cdSize = tail.getUint32(eocd + 12, true), cdOff = tail.getUint32(eocd + 16, true);
+    const cd = new DataView(await blob.slice(cdOff, cdOff + cdSize).arrayBuffer());
+    const entries = {};
+    let p = 0;
+    for (let k = 0; k < n; k++) {
+      if (cd.getUint32(p, true) !== 0x02014b50) throw new Error("Le classeur est abîmé (archive illisible).");
+      const nl = cd.getUint16(p + 28, true), el = cd.getUint16(p + 30, true), cl = cd.getUint16(p + 32, true);
+      const name = td.decode(new Uint8Array(cd.buffer, cd.byteOffset + p + 46, nl));
+      entries[name] = {method: cd.getUint16(p + 10, true), comp: cd.getUint32(p + 20, true), off: cd.getUint32(p + 42, true)};
+      p += 46 + nl + el + cl;
+    }
+    return entries;
+  }
+
+  async function stream(blob, e, onBytes) {
+    const h = new DataView(await blob.slice(e.off, e.off + 30).arrayBuffer());
+    const start = e.off + 30 + h.getUint16(26, true) + h.getUint16(28, true);
+    let s = blob.slice(start, start + e.comp).stream();
+    if (onBytes) s = s.pipeThrough(new TransformStream({transform(c, ctl) { onBytes(c.byteLength); ctl.enqueue(c); }}));
+    if (e.method === 8) s = s.pipeThrough(new DecompressionStream('deflate-raw'));
+    else if (e.method !== 0) throw new Error("Méthode de compression inconnue dans le classeur.");
+    return s.pipeThrough(new TextDecoderStream());
+  }
+
+  async function text(blob, e) {
+    const r = (await stream(blob, e)).getReader();
+    const parts = [];
+    for (;;) { const {done, value} = await r.read(); if (done) break; parts.push(value); }
+    return parts.join('');
+  }
+
+  function sharedStrings(xml) {
+    const out = [];
+    const re = /<si>([\s\S]*?)<\/si>|<si\/>/g;
+    let m;
+    while ((m = re.exec(xml))) {
+      if (m[1] === undefined) { out.push(''); continue; }
+      const body = m[1].replace(/<rPh\b[\s\S]*?<\/rPh>/g, '');
+      let s = '', t; const rt = /<t\b[^>]*>([\s\S]*?)<\/t>/g;
+      while ((t = rt.exec(body))) s += t[1];
+      out.push(unesc(s));
+    }
+    return out;
+  }
+
+  const colIndex = ref => { let n = 0; for (let i = 0; i < ref.length; i++) { const c = ref.charCodeAt(i); if (c < 65 || c > 90) break; n = n * 26 + c - 64; } return n - 1; };
+
+  function parseRows(chunk, ss, onRow) {
+    const rr = /<row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/row>)/g;
+    let m;
+    while ((m = rr.exec(chunk))) {
+      const rn = /\br="(\d+)"/.exec(m[1]);
+      const cells = [];
+      if (m[2]) {
+        const rc = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
+        let c, col = -1;
+        while ((c = rc.exec(m[2]))) {
+          const a = c[1];
+          const r = /\br="([A-Z]+)\d*"/.exec(a);
+          col = r ? colIndex(r[1]) : col + 1;
+          const body = c[2];
+          if (!body) continue;
+          const t = (/\bt="(\w+)"/.exec(a) || [])[1];
+          let v;
+          if (t === 'inlineStr') { const x = /<t\b[^>]*>([\s\S]*?)<\/t>/.exec(body); v = x ? unesc(x[1]) : ''; }
+          else {
+            const x = /<v>([\s\S]*?)<\/v>/.exec(body);
+            if (!x) continue;
+            if (t === 's') v = ss[+x[1]];
+            else if (t === 'str') v = unesc(x[1]);
+            else if (t === 'b') v = x[1] === '1';
+            else if (t === 'e') v = null;
+            else v = Number(x[1]);
+          }
+          cells[col] = v;
+        }
+      }
+      onRow(cells, rn ? +rn[1] : 0);
+    }
+  }
+
+  async function rows(blob, e, ss, onRow, onBytes) {
+    const r = (await stream(blob, e, onBytes)).getReader();
+    let buf = '';
+    for (;;) {
+      const {done, value} = await r.read();
+      if (value) buf += value;
+      if (done) { if (buf) parseRows(buf, ss, onRow); break; }
+      const end = buf.lastIndexOf('</row>');
+      if (end > 0) { parseRows(buf.slice(0, end + 6), ss, onRow); buf = buf.slice(end + 6); }
+    }
+  }
+
+  const norm = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+
+  async function open(blob) {
+    const entries = await index(blob);
+    if (!entries['xl/workbook.xml']) throw new Error("Ce fichier n'est pas un classeur Excel (.xlsx).");
+    const wb = await text(blob, entries['xl/workbook.xml']);
+    const rels = await text(blob, entries['xl/_rels/workbook.xml.rels']);
+    const targets = {};
+    for (const m of rels.matchAll(/<Relationship\b[^>]*>/g)) {
+      const id = /\bId="([^"]+)"/.exec(m[0]), tg = /\bTarget="([^"]+)"/.exec(m[0]);
+      if (id && tg) targets[id[1]] = tg[1].startsWith('/') ? tg[1].slice(1) : 'xl/' + tg[1];
+    }
+    const sheets = [];
+    for (const m of wb.matchAll(/<sheet\b[^>]*>/g)) {
+      const name = /\bname="([^"]*)"/.exec(m[0]), rid = /\br:id="([^"]+)"/.exec(m[0]);
+      if (name && rid) sheets.push({name: unesc(name[1]), key: norm(unesc(name[1])), entry: entries[targets[rid[1]]]});
+    }
+    const sse = entries['xl/sharedStrings.xml'];
+    const ss = sse ? sharedStrings(await text(blob, sse)) : [];
+    return {
+      sheets,
+      sheet(key) { return sheets.find(s => s.key === norm(key)); },
+      rows: (sh, onRow, onBytes) => rows(blob, sh.entry, ss, onRow, onBytes),
+    };
+  }
+
+  /* Lit un onglet de données : la ligne d'en-tête est celle qui contient `keyCol`. */
+  async function table(book, sheetKey, keyCol, keep, onBytes) {
+    const sh = book.sheet(sheetKey);
+    if (!sh || !sh.entry) throw new Error(`Ce fichier ne ressemble pas au tableau de bord DEPHY : l'onglet « ${sheetKey} » est introuvable.`);
+    let cols = null, keyIdx = -1;
+    const out = [];
+    await book.rows(sh, cells => {
+      if (!cols) {
+        const i = cells.indexOf(keyCol);
+        if (i >= 0) {
+          keyIdx = i;
+          cols = [];
+          cells.forEach((h, j) => { if (typeof h === 'string' && (!keep || keep(h))) cols.push([h, j]); });
+        }
+        return;
+      }
+      if (cells[keyIdx] == null || cells[keyIdx] === '') return;
+      const o = {};
+      for (const [h, j] of cols) o[h] = cells[j] ?? null;
+      out.push(o);
+    }, onBytes);
+    if (!cols) throw new Error(`L'onglet « ${sheetKey} » n'a pas la colonne « ${keyCol} » attendue.`);
+    return out;
+  }
+
+  return {open, table, norm};
+})();
+
+/* Colonnes d'identifiants Agrosyst, inutiles à l'affichage et lourdes (~21 000 lignes). */
+const CP_DROP = new Set(['identifiant_itk_sdc_camp','identifiant_itk','domaine_id','sdc_id','systeme_synthetise_id','culture_precedent_rang_id',
+  'culture_code','culture_id','ci_code','ci_id','precedent_code','precedent_id','parcelle_id','zone_id']);
+
+async function readDephy(blob, onProgress) {
+  const book = await XlsxLite.open(blob);
+  const sdcSh = book.sheet('Données_SDC'), cpSh = book.sheet('Données_CP');
+  const total = (sdcSh?.entry?.comp || 0) + (cpSh?.entry?.comp || 0) || 1;
+  let done = 0;
+  const tick = n => { done += n; onProgress && onProgress(done / total); };
+  const sdc = await XlsxLite.table(book, 'Données_SDC', 'sdc_code_dephy', null, tick);
+  const cp = await XlsxLite.table(book, 'Données_CP', 'identifiant_itk_sdc_camp', h => !CP_DROP.has(h), tick);
+  if (!sdc.length) throw new Error("L'onglet « Données_SDC » est vide.");
+  let extraction = null;
+  const tdb = book.sheet('Tableau de bord SdC');
+  if (tdb && tdb.entry) {
+    await book.rows(tdb, (cells, rn) => {
+      if (rn === 5 && typeof cells[1] === 'number') extraction = new Date(Date.UTC(1899, 11, 30) + cells[1] * 864e5).toISOString().slice(0, 10);
+    });
+  }
+  // Météo et notice : facultatives, la page fonctionne sans elles.
+  const optional = async f => { try { return await f(); } catch { return null; } };
+  const meteo = await optional(() => XlsxLite.table(book, 'Données_météo', 'departement_periode', null));
+  const meteoRef = await optional(() => XlsxLite.table(book, 'Ref_météo', 'Campagne', null));
+  const notice = await optional(async () => {
+    const sh = book.sheet('Notice & lexique');
+    if (!sh || !sh.entry) return null;
+    const out = [];
+    let on = false;
+    await book.rows(sh, cells => {
+      if (!on) { on = cells[5] === 'Définition'; return; }
+      const c = cells.map(x => x == null ? '' : String(x).trim());
+      if (c.some(Boolean)) out.push(c.slice(0, 9));
+    });
+    return out;
+  });
+  return {sdc, cp, extraction, meteo, meteoRef, notice};
+}
+</script>
+
+<script>
+/* ---------- utilitaires ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num = v => { if (v == null || v === '' || typeof v === 'boolean') return null; const n = typeof v === 'number' ? v : parseFloat(String(v).replace(',', '.')); return Number.isFinite(n) ? n : null; };
+const fmtCache = {};
+const fmt = (v, d = 0) => { if (v == null || !Number.isFinite(v)) return '—'; const f = fmtCache[d] ||= new Intl.NumberFormat('fr-FR', {maximumFractionDigits: d, minimumFractionDigits: 0}); return f.format(Math.abs(v) < 1e-9 ? 0 : v); };
+const median = a => { const b = a.filter(v => v != null && Number.isFinite(v)).sort((x, y) => x - y); if (!b.length) return null; const m = b.length >> 1; return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2; };
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+const campLabel = c => { const p = String(c).split('_'); return p.length > 1 ? `${p[0]}–${p[p.length - 1]}` : String(c); };
+const campSort = c => { const p = String(c).split('_').map(Number); return p[p.length - 1] - (p.length > 1 ? 0.5 : 0); };
+const farmName = r => String(r.domaine_nom || r.sdc_code_dephy).replace(/\s*\(\d{4}\)\s*$/, '');
+const irLabel = ir => String(ir).replace(/^IR_/, '').replace(/_/g, ' ').toLowerCase().replace(/(^|[\s-])\p{L}/gu, m => m.toUpperCase());
+const prodLabel = sp => {
+  const [mode, type] = String(sp || '').split('_').reduce((a, x, i, arr) => i === 0 ? [x, arr.slice(1).join('_')] : a, ['', '']);
+  const m = /biolog/i.test(mode) ? 'Bio' : /conv/i.test(mode) ? 'Conventionnel' : 'Mode non renseigné';
+  const t = {PLEIN_CHAMP: 'plein champ', ABRIS: 'sous abri', HORS_SOL: 'hors-sol'}[type] || 'type non renseigné';
+  return `${m}, ${t}`;
+};
+const typeLabel = t => ({PLEIN_CHAMP: 'Plein champ', ABRIS: 'Sous abri', HORS_SOL: 'Hors-sol'}[t] || '—');
+const RDT_UNIT = {TONNE_HA: 't/ha', UNITE_HA: 'pièces/ha', Q_HA_TO_STANDARD_HUMIDITY: 'q/ha', TONNE_MS_HA: 't MS/ha'};
+const isAlert = v => v != null && v !== '' && v !== 'Aucune alerte' && v !== 0;
+
+/* ---------- indicateurs ---------- */
+const V = (k, mk) => ({v: r => num(r[k]), m: r => num(r[mk || 'MED_' + k])});
+const sum = (...ks) => r => { let s = 0, any = false; for (const k of ks) { const x = num(r[k]); if (x != null) { s += x; any = true; } } return any ? s : null; };
+const IND = {
+  pb:     {label: 'Produit brut', unit: '€/ha', d: 0, ...V('pb_reel_avec_autoconso')},
+  msn:    {label: 'Marge semi-nette', unit: '€/ha', d: 0, ...V('MSN_relle_ac_auto_SDC')},
+  mb:     {label: 'Marge brute', unit: '€/ha', d: 0, ...V('MB_reelle_ac_auto_SDC')},
+  msnstd: {label: 'Marge semi-nette aux prix standardisés', unit: '€/ha', d: 0, ...V('MSN_std_ac_auto_SDC')},
+  mbstd:  {label: 'Marge brute aux prix standardisés', unit: '€/ha', d: 0, ...V('MB_std_ac_auto_SDC')},
+  co:     {label: 'Intrants aux prix standardisés (semences, plants, engrais, traitements)', short: 'Intrants', unit: '€/ha', d: 0, ...V('CO_std_mil_SDC')},
+  cm:     {label: 'Matériel (hors main-d\'œuvre)', unit: '€/ha', d: 0, ...V('CM_reelles_SDC')},
+  mot:    {label: 'Main-d\'œuvre au tracteur', unit: '€/ha', d: 0, ...V('cout_mo_tractoriste')},
+  mom:    {label: 'Main-d\'œuvre manuelle', unit: '€/ha', d: 0, ...V('cout_mo_manuelle')},
+  mo:     {label: 'Main-d\'œuvre totale', unit: '€/ha', d: 0, v: sum('cout_mo_tractoriste', 'cout_mo_manuelle'), m: r => num(r.MED_cout_mo_totale)},
+  ct:     {label: 'Charges totales', unit: '€/ha', d: 0, v: sum('CO_std_mil_SDC', 'CM_reelles_SDC', 'cout_mo_tractoriste', 'cout_mo_manuelle'), m: r => num(r.MED_cout_totale)},
+  cor:    {label: 'Intrants aux prix payés par la ferme (pour information, pas dans les charges totales)', short: 'Intrants aux prix de la ferme', unit: '€/ha', d: 0, ...V('CO_reelles_SDC')},
+  tt:     {label: 'Temps de travail', unit: 'h/ha', d: 0, v: sum('tps_util_materiel_SDC', 'tps_travail_manuel_SDC'), m: r => num(r.MED_tps_total)},
+  tman:   {label: 'à la main', unit: 'h/ha', d: 0, v: r => num(r.tps_travail_manuel_SDC), m: r => num(r.MED_tps_travail_manuel)},
+  tmat:   {label: 'au tracteur ou avec un outil motorisé', unit: 'h/ha', d: 0, v: r => num(r.tps_util_materiel_SDC), m: r => num(r.MED_tps_util_materiel)},
+  uth:    {label: 'UTH par hectare', unit: 'UTH/ha', d: 2, ...V('nbre_uth_sdc')},
+  cx:     {label: 'Complexité du système de culture', unit: '', d: 0, ...V('complexite_SDC')},
+  ift:    {label: 'IFT total (chimique et biocontrôle)', unit: '', d: 2, v: sum('ift_histo_chimique_tot_SDC', 'ift_histo_biocontrole_SDC'), m: sum('MED_ift_histo_chimique_tot_SDC', 'MED_ift_histo_biocontrole_SDC')},
+  iftc:   {label: 'IFT chimique', unit: '', d: 2, ...V('ift_histo_chimique_tot_SDC')},
+  ifthts: {label: 'hors traitement des semences', unit: '', d: 2, ...V('ift_histo_chim_tot_hts_SDC')},
+  ifth:   {label: 'herbicides', unit: '', d: 2, ...V('ift_histo_h_SDC')},
+  ifthh:  {label: 'hors herbicides', unit: '', d: 2, ...V('ift_histo_hh_SDC')},
+  ifthhts:{label: 'hors herbicides et hors traitement des semences', unit: '', d: 2, ...V('ift_histo_hh_hors_TS_SDC')},
+  iftf:   {label: 'fongicides', unit: '', d: 2, ...V('ift_histo_f_SDC')},
+  ifti:   {label: 'insecticides', unit: '', d: 2, ...V('ift_histo_i_SDC')},
+  ifta:   {label: 'autres (molluscicides, régulateurs…)', unit: '', d: 2, ...V('ift_histo_a_SDC')},
+  iftts:  {label: 'traitement des semences', unit: '', d: 2, ...V('ift_histo_ts_SDC')},
+  iftb:   {label: 'IFT biocontrôle', unit: '', d: 2, ...V('ift_histo_biocontrole_SDC')},
+  ciftc:  {label: 'IFT chimique', unit: '', d: 2, v: r => num(r.ift_cible_non_mil_chimiq_tot_SDC), m: r => num(r.MED_ift_cible_non_mil_chimiq_tot)},
+  cifthts:{label: 'hors traitement des semences', unit: '', d: 2, v: r => num(r.ift_cible_non_mil_tot_hts_SDC), m: r => num(r.MED_ift_cible_tot_hts_SDC)},
+  cifth:  {label: 'herbicides', unit: '', d: 2, ...V('ift_cible_non_mil_h_SDC')},
+  cifthh: {label: 'hors herbicides', unit: '', d: 2, ...V('ift_cible_non_mil_hh_SDC')},
+  cifthhts:{label: 'hors herbicides et hors traitement des semences', unit: '', d: 2, v: r => num(r.ift_cible_non_mil_hh_hors_TS_SDC), m: r => num(r.MED_ift_cible_hh_hors_TS_SDC)},
+  ciftf:  {label: 'fongicides', unit: '', d: 2, ...V('ift_cible_non_mil_f_SDC')},
+  cifti:  {label: 'insecticides', unit: '', d: 2, ...V('ift_cible_non_mil_i_SDC')},
+  cifta:  {label: 'autres', unit: '', d: 2, ...V('ift_cible_non_mil_a_SDC')},
+  ciftts: {label: 'traitement des semences', unit: '', d: 2, ...V('ift_cible_non_mil_ts_SDC')},
+  ciftb:  {label: 'IFT biocontrôle', unit: '', d: 2, v: r => num(r.ift_cible_non_mil_biocontrol_SDC), m: r => num(r.MED_ift_cible_non_mil_biocontrol)},
+  ma:     {label: 'Matières actives épandues', unit: 'kg/ha', d: 2, v: r => num(r.quantite_mat_active_intrant_SDC), m: r => num(r.MED_quantite_mat_active_intrant)},
+  matox:  {label: 'toxiques pour l\'utilisateur', unit: 'kg/ha', d: 2, v: r => num(r.quantite_mat_active_danger_SDC), m: r => num(r.MED_qte_mat_active_danger_SDC)},
+  macmr:  {label: 'cancérigènes, mutagènes ou reprotoxiques (CMR)', unit: 'kg/ha', d: 2, ...V('quantite_mat_active_CMR_SDC')},
+  maenv:  {label: 'dangereuses pour l\'environnement', unit: 'kg/ha', d: 2, v: r => num(r.qte_mat_active_danger_env_SDC), m: r => num(r.MED_qte_mat_active_danger_env)},
+  glypho: {label: 'Glyphosate', unit: 'kg/ha', d: 3, v: r => num(r.quantite_mat_active_glypho_SDC), m: r => num(r.MED_qte_mat_active_glypho_SDC)},
+  neonic: {label: 'Néonicotinoïdes', unit: 'kg/ha', d: 3, v: r => num(r.quantite_mat_active_neonic_SDC), m: r => num(r.MED_qte_mat_active_neonic_SDC)},
+  nbtox:  {label: 'Produits appliqués qui contiennent une matière active toxique pour l\'utilisateur', short: 'Produits toxiques pour l\'utilisateur', unit: 'produits', d: 0, ...V('Nb_intrant_dang_SDC')},
+  nbcmr:  {label: 'Produits appliqués qui contiennent une matière active CMR', short: 'Produits CMR', unit: 'produits', d: 0, ...V('Nb_intrant_CMR_SDC')},
+  nbenv:  {label: 'Produits appliqués qui contiennent une matière active dangereuse pour l\'environnement', short: 'Produits dangereux pour l\'environnement', unit: 'produits', d: 0, ...V('Nb_intrant_danger_enviro_SDC')},
+  cu:     {label: 'Cuivre', unit: 'kg/ha', d: 2, ...V('quantite_cuivre_SDC')},
+  cuph:   {label: 'par les traitements', unit: 'kg/ha', d: 2, ...V('qte_cuivre_phyto_SDC')},
+  cueng:  {label: 'par les engrais foliaires', unit: 'kg/ha', d: 2, ...V('qte_cuivre_engrais_SDC')},
+  so:     {label: 'Soufre', unit: 'kg/ha', d: 2, ...V('quantite_soufre_SDC')},
+  soph:   {label: 'par les traitements', unit: 'kg/ha', d: 2, ...V('qte_soufre_phyto_SDC')},
+  soeng:  {label: 'par les engrais foliaires', unit: 'kg/ha', d: 2, ...V('qte_soufre_engrais_SDC')},
+  bio:    {label: 'Recours à la lutte biologique', unit: '', d: 2, ...V('rec_moyens_biologiques_SDC')},
+  biomac: {label: 'macro-organismes (auxiliaires)', unit: '', d: 2, ...V('recours_macroorganismes_SDC')},
+  biobio: {label: 'produits biotiques sans AMM', unit: '', d: 2, ...V('rec_pdts_biot_sansamm_SDC')},
+  bioabi: {label: 'produits abiotiques sans AMM', unit: '', d: 2, ...V('rec_pdts_abiot_sansamm_SDC')},
+  bixa:   {label: 'Bixafen', unit: 'kg/ha', d: 3, ...V('qte_mat_active_bixafen_SDC')},
+  bosca:  {label: 'Boscalid', unit: 'kg/ha', d: 3, ...V('qte_mat_active_boscalid_SDC')},
+  dica:   {label: 'Dicamba', unit: 'kg/ha', d: 3, ...V('qte_mat_active_dicamba_SDC')},
+  difl:   {label: 'Diflufénicanil', unit: 'kg/ha', d: 3, ...V('qte_mat_active_diflufeni_SDC')},
+  manco:  {label: 'Mancozèbe', unit: 'kg/ha', d: 3, ...V('qte_mat_active_mancozebe_SDC')},
+  prosu:  {label: 'Prosulfocarbe', unit: 'kg/ha', d: 3, ...V('qte_mat_active_prosulfo_SDC')},
+  smeto:  {label: 'S-métolachlore', unit: 'kg/ha', d: 3, ...V('qte_mat_active_smethola_SDC')},
+  tebu:   {label: 'Tébuconazole', unit: 'kg/ha', d: 3, ...V('qte_mat_active_tebuco_SDC')},
+  n:      {label: 'Azote (N)', unit: 'u/ha', d: 0, ...V('N_SDC')},
+  nmin:   {label: 'minéral', unit: 'u/ha', d: 0, ...V('N_Mineral_SDC')},
+  norg:   {label: 'organique', unit: 'u/ha', d: 0, ...V('N_Orga_SDC')},
+  p:      {label: 'Phosphore (P)', unit: 'u/ha', d: 0, ...V('P_SDC')},
+  pmin:   {label: 'minéral', unit: 'u/ha', d: 0, ...V('P_Mineral_SDC')},
+  porg:   {label: 'organique', unit: 'u/ha', d: 0, ...V('P_Orga_SDC')},
+  k:      {label: 'Potasse (K)', unit: 'u/ha', d: 0, ...V('K_SDC')},
+  kmin:   {label: 'minérale', unit: 'u/ha', d: 0, ...V('K_Mineral_SDC')},
+  korg:   {label: 'organique', unit: 'u/ha', d: 0, ...V('K_Orga_SDC')},
+  fuel:   {label: 'Carburant', unit: 'L/ha', d: 0, ...V('conso_carburant_SDC')},
+  nrj:    {label: 'Énergie consommée', unit: 'MJ/ha', d: 0, ...V('NRJ_SDC')},
+  nrjf:   {label: 'carburant', unit: 'MJ/ha', d: 0, share: 'nrj', ...V('Energie_Fuel_SDC')},
+  nrje:   {label: 'fabrication des engrais', unit: 'MJ/ha', d: 0, share: 'nrj', v: r => num(r.energie_indirecte_engrais_SDC), m: r => num(r.MED_energie_indir_engrais_SDC)},
+  nrjp:   {label: 'fabrication des produits phyto', unit: 'MJ/ha', d: 0, share: 'nrj', ...V('energie_indirecte_phyto_SDC')},
+  nrji:   {label: 'fabrication des intrants (engrais et phyto)', unit: 'MJ/ha', d: 0, share: 'nrj', ...V('NRJ_indirecte_SDC')},
+  ges:    {label: 'Gaz à effet de serre', unit: 'kg éq. CO₂/ha', d: 0, ...V('GES_SDC')},
+  gesd:   {label: 'émis sur la ferme', unit: 'kg éq. CO₂/ha', d: 0, share: 'ges', ...V('GES_directes_SDC')},
+  gesdf:  {label: 'par le carburant', unit: 'kg éq. CO₂/ha', d: 0, share: 'ges', ...V('Emissions_directes_Fuel_SDC')},
+  gesde:  {label: 'par les engrais, au champ', unit: 'kg éq. CO₂/ha', d: 0, share: 'ges', ...V('Emissions_directes_Ferti_SDC')},
+  gesi:   {label: 'émis pour produire ce que la ferme achète', unit: 'kg éq. CO₂/ha', d: 0, share: 'ges', ...V('GES_indirectes_SDC')},
+  gesif:  {label: 'carburant', unit: 'kg éq. CO₂/ha', d: 0, share: 'ges', v: r => num(r.Emissions_indirectes_fuel_SDC), m: r => num(r.MED_emissions_indir_fuel_SDC)},
+  gesie:  {label: 'engrais', unit: 'kg éq. CO₂/ha', d: 0, share: 'ges', v: r => num(r.emissions_indirectes_engrais_SDC), m: r => num(r.MED_emissions_indir_engrais_SDC)},
+  gesip:  {label: 'produits phyto', unit: 'kg éq. CO₂/ha', d: 0, share: 'ges', v: r => num(r.emissions_indirectes_phyto_SDC), m: r => num(r.MED_emissions_indir_phyto_SDC)},
+};
+const SECTIONS = [
+  {title: 'Économie', sub: 'en euros par hectare', rows: [['pb', 'head'], ['mb', 'head'], ['msn', 'head'], ['mbstd'], ['msnstd'], ['co'], ['cm'], ['mot'], ['mom'], ['mo'], ['ct', 'head'], ['cor']]},
+  {title: 'Temps de travail', sub: 'en heures par hectare et par an', rows: [['tt', 'head'], ['tman', 'sub'], ['tmat', 'sub'], ['uth'], ['cx']]},
+  {title: 'IFT', sub: 'calculés avec les doses de référence historiques', rows: [['ift', 'head'], ['iftc', 'head'], ['ifthts', 'sub'], ['ifth', 'sub'], ['ifthh', 'sub'], ['ifthhts', 'sub'], ['iftf', 'sub'], ['ifti', 'sub'], ['ifta', 'sub'], ['iftts', 'sub'], ['iftb', 'head']]},
+  {title: 'IFT à la cible', sub: 'calculés avec les doses de référence par cible, non millésimées', rows: [['ciftc', 'head'], ['cifthts', 'sub'], ['cifth', 'sub'], ['cifthh', 'sub'], ['cifthhts', 'sub'], ['ciftf', 'sub'], ['cifti', 'sub'], ['cifta', 'sub'], ['ciftts', 'sub'], ['ciftb', 'head']]},
+  {title: 'Produits appliqués', sub: 'quantités par hectare', rows: [['ma', 'head'], ['matox', 'sub'], ['macmr', 'sub'], ['maenv', 'sub'], ['cu', 'head'], ['cuph', 'sub'], ['cueng', 'sub'], ['so', 'head'], ['soph', 'sub'], ['soeng', 'sub'], ['glypho'], ['neonic'], ['nbtox'], ['nbcmr'], ['nbenv']]},
+  {title: 'Lutte biologique et molécules préoccupantes', sub: 'fréquence de recours, puis kg de matière active par hectare', rows: [['bio', 'head'], ['biomac', 'sub'], ['biobio', 'sub'], ['bioabi', 'sub'], ['bixa'], ['bosca'], ['dica'], ['difl'], ['manco'], ['prosu'], ['smeto'], ['tebu']]},
+  {title: 'Fertilisation', sub: 'en unités par hectare', rows: [['n', 'head'], ['nmin', 'sub'], ['norg', 'sub'], ['p', 'head'], ['pmin', 'sub'], ['porg', 'sub'], ['k', 'head'], ['kmin', 'sub'], ['korg', 'sub']]},
+  {title: 'Énergie et climat', sub: 'par hectare ; entre parenthèses, la part du total', rows: [['fuel', 'head'], ['nrj', 'head'], ['nrjf', 'sub'], ['nrji', 'sub'], ['nrje', 'sub2'], ['nrjp', 'sub2'], ['ges', 'head'], ['gesd', 'sub'], ['gesdf', 'sub2'], ['gesde', 'sub2'], ['gesi', 'sub'], ['gesif', 'sub2'], ['gesie', 'sub2'], ['gesip', 'sub2']]},
+];
+const TRAJ = ['pb', 'msn', 'ct', 'tt', 'iftc', 'iftb', 'cu', 'n', 'fuel'];
+/* Tableau « toutes campagnes » de l'onglet Trajectoire_SDC du classeur. */
+const TRAJ_STATS = ['pb', 'msn', 'co', 'cm', 'mot', 'mom', 'ct', 'iftc', 'ifth', 'iftf', 'ifti', 'iftb', 'ma', 'matox', 'macmr', 'maenv', 'cu', 'cuph', 'cueng', 'so', 'soph', 'soeng', 'glypho', 'neonic', 'nbtox', 'nbcmr', 'nbenv', 'n', 'p', 'k', 'tt', 'tmat', 'tman', 'fuel', 'nrj', 'ges'];
+const GROUP_COLS = ['pb', 'msn', 'tt', 'iftc', 'iftb', 'cu', 'n', 'fuel'];
+const COMPARE = () => SECTIONS.flatMap(sec => sec.rows.map(([k]) => k));
+
+const MONTHS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+const M_MAT = ['janvier', 'fevrier', 'mars', 'avril', 'mai', 'juin', 'juillet', 'aout', 'sept', 'oct', 'nov', 'dec'].map(m => `tps_util_materiel_${m}_SDC`);
+const M_MAN = ['janvier', 'fevrier', 'mars', 'avril', 'mai', 'juin', 'juillet', 'aout', 'septembre', 'octobre', 'novembre', 'decembre'].map(m => `tps_travail_manuel_${m}_SDC`);
+const M_MED = ['janv', 'fev', 'mars', 'avril', 'mai', 'juin', 'juill', 'aout', 'sept', 'oct', 'nov', 'dec'].map(m => `MED_tps_total_${m}`);
+
+/* ---------- état ---------- */
+const S = {data: null, file: null, ir: null, camp: 'last', tab: store.get('dephy.tab') || 'groupe', farm: null, farmCamp: null, culture: null, compare: 'pb'};
+
+function buildModel(raw) {
+  const groups = new Map();
+  for (const r of raw.sdc) {
+    r.campagne_donnees = String(r.campagne_donnees ?? '');
+    const ir = r.reseau_ir;
+    if (!ir || ir === '_') continue;
+    if (!groups.has(ir)) groups.set(ir, new Map());
+    const g = groups.get(ir);
+    if (!g.has(r.sdc_code_dephy)) g.set(r.sdc_code_dephy, []);
+    g.get(r.sdc_code_dephy).push(r);
+  }
+  for (const g of groups.values()) for (const list of g.values()) list.sort((a, b) => campSort(a.campagne_donnees) - campSort(b.campagne_donnees));
+  const cpBySys = new Map();
+  for (const r of raw.cp) {
+    r.campagne_donnees = String(r.campagne_donnees ?? '');
+    const k = r.identifiant_systeme_campagne;
+    if (!cpBySys.has(k)) cpBySys.set(k, []);
+    cpBySys.get(k).push(r);
+  }
+  const meteo = new Map();
+  for (const m of raw.meteo || []) meteo.set(`${m.Nom_Departement}_${m.periode}`, m);
+  const meteoRef = new Map((raw.meteoRef || []).map(x => [String(x.Campagne).replace(/^_/, ''), x['Période ref.']]));
+  return {groups, cp: raw.cp, cpBySys, extraction: raw.extraction, meteo, meteoRef, notice: raw.notice || []};
+}
+
+/* Une ligne par ferme du groupe, pour la campagne choisie (ou la dernière de chaque ferme). */
+function groupRows() {
+  const g = S.data.groups.get(S.ir);
+  if (!g) return [];
+  const out = [];
+  for (const list of g.values()) {
+    const r = S.camp === 'last' ? list[list.length - 1] : list.find(x => x.campagne_donnees === S.camp);
+    if (r) out.push(r);
+  }
+  return out.sort((a, b) => farmName(a).localeCompare(farmName(b), 'fr'));
+}
+
+/* ---------- infobulle ---------- */
+const tip = $('#tip');
+function showTip(html, ev) {
+  tip.innerHTML = html; tip.style.display = 'block';
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = ev.clientX + 14, y = ev.clientY + 14;
+  if (x + w > innerWidth - 8) x = ev.clientX - w - 14;
+  if (y + h > innerHeight - 8) y = ev.clientY - h - 14;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+const hideTip = () => { tip.style.display = 'none'; };
+
+/* ---------- graphiques SVG ---------- */
+function niceTicks(lo, hi, n = 4) {
+  if (hi === lo) hi = lo + 1;
+  const raw = (hi - lo) / n, p = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].map(s => s * p).find(s => s >= raw);
+  const t = [];
+  for (let v = Math.floor(lo / step) * step; v <= hi + step * 1e-6; v += step) t.push(+v.toFixed(10));
+  if (t[t.length - 1] < hi) t.push(t[t.length - 1] + step);
+  return t;
+}
+const short = v => Math.abs(v) >= 1e6 ? fmt(v / 1e6, 1) + ' M' : Math.abs(v) >= 1e4 ? fmt(v / 1e3, 0) + ' k' : fmt(v, Math.abs(v) < 10 ? 1 : 0);
+
+function lineChart(el, {labels, farm, ref, unit, d, names = ['Ferme', 'Repère DEPHY'], zero = true}) {
+  const W = Math.max(260, el.clientWidth), H = 160, m = {l: 40, r: 10, t: 10, b: 22};
+  const all = [...farm, ...ref].filter(v => v != null);
+  if (!all.length) { el.innerHTML = '<div class="empty">Pas de valeur.</div>'; return; }
+  const lo0 = zero ? Math.min(0, ...all) : Math.min(...all), hi0 = Math.max(...all);
+  const ticks = niceTicks(lo0, zero ? (hi0 * 1.05 || 1) : hi0 + (hi0 - lo0) * 0.05 + 0.5);
+  const y0 = ticks[0], y1 = ticks[ticks.length - 1];
+  const X = i => m.l + (labels.length === 1 ? (W - m.l - m.r) / 2 : i * (W - m.l - m.r) / (labels.length - 1));
+  const Y = v => m.t + (1 - (v - y0) / (y1 - y0)) * (H - m.t - m.b);
+  const path = vals => { let s = '', pen = false; vals.forEach((v, i) => { if (v == null) { pen = false; return; } s += (pen ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(v).toFixed(1); pen = true; }); return s; };
+  const every = Math.ceil(labels.length / Math.max(2, Math.floor((W - m.l) / 52)));
+  let s = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img">`;
+  for (const t of ticks) s += `<line class="grid" x1="${m.l}" x2="${W - m.r}" y1="${Y(t)}" y2="${Y(t)}"/><text x="${m.l - 6}" y="${Y(t) + 3.5}" text-anchor="end">${short(t)}</text>`;
+  labels.forEach((l, i) => { if (i % every === 0 || i === labels.length - 1) s += `<text x="${X(i)}" y="${H - 5}" text-anchor="middle">${esc(l)}</text>`; });
+  s += `<path d="${path(ref)}" fill="none" stroke="var(--ref)" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+  s += `<path d="${path(farm)}" fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round"/>`;
+  farm.forEach((v, i) => { if (v != null) s += `<circle cx="${X(i)}" cy="${Y(v)}" r="4" fill="var(--s1)" stroke="var(--surface)" stroke-width="2"/>`; });
+  s += `<line class="cross" id="x" y1="${m.t}" y2="${H - m.b}" visibility="hidden"/><rect x="${m.l}" y="0" width="${W - m.l - m.r}" height="${H}" fill="transparent"/></svg>`;
+  el.innerHTML = s;
+  const svg = el.querySelector('svg'), cross = svg.querySelector('.cross');
+  svg.querySelector('rect').addEventListener('mousemove', ev => {
+    const b = svg.getBoundingClientRect(), px = (ev.clientX - b.left) * W / b.width;
+    let i = 0, best = Infinity;
+    labels.forEach((_, k) => { const dd = Math.abs(X(k) - px); if (dd < best) { best = dd; i = k; } });
+    cross.setAttribute('x1', X(i)); cross.setAttribute('x2', X(i)); cross.setAttribute('visibility', 'visible');
+    showTip(`<b>${esc(labels[i])}</b><div class="row"><span>${esc(names[0])}</span><span>${fmt(farm[i], d)} ${unit}</span></div><div class="row"><span>${esc(names[1])}</span><span>${fmt(ref[i], d)} ${unit}</span></div>`, ev);
+  });
+  svg.querySelector('rect').addEventListener('mouseleave', () => { cross.setAttribute('visibility', 'hidden'); hideTip(); });
+}
+
+function monthChart(el, {man, mat, ref, refName = 'Repère DEPHY', names = ['À la main', 'Tracteur ou outil motorisé'], unit = 'h/ha', d = 1}) {
+  mat = mat || man.map(() => 0);
+  const W = Math.max(300, el.clientWidth), H = 200, m = {l: 36, r: 8, t: 10, b: 22};
+  const ticks = niceTicks(0, Math.max(1, ...man.map((v, i) => v + mat[i]), ...ref.filter(v => v != null)) * 1.05);
+  const y1 = ticks[ticks.length - 1];
+  const bw = (W - m.l - m.r) / 12, Y = v => m.t + (1 - v / y1) * (H - m.t - m.b), base = Y(0);
+  let s = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img">`;
+  for (const t of ticks) s += `<line class="grid" x1="${m.l}" x2="${W - m.r}" y1="${Y(t)}" y2="${Y(t)}"/><text x="${m.l - 6}" y="${Y(t) + 3.5}" text-anchor="end">${short(t)}</text>`;
+  const barW = Math.min(28, bw * 0.62);
+  for (let i = 0; i < 12; i++) {
+    const cx = m.l + bw * i + bw / 2, x = cx - barW / 2;
+    const yMan = Y(man[i]), yTop = Y(man[i] + mat[i]);
+    if (man[i] > 0) s += `<rect x="${x}" y="${yMan}" width="${barW}" height="${Math.max(0, base - yMan)}" fill="var(--s1)"/>`;
+    if (mat[i] > 0) s += `<rect x="${x}" y="${yTop}" width="${barW}" height="${Math.max(0, yMan - yTop - (man[i] > 0 ? 2 : 0))}" fill="var(--s2)" rx="2"/>`;
+    if (ref[i] != null) s += `<line x1="${x - 3}" x2="${x + barW + 3}" y1="${Y(ref[i])}" y2="${Y(ref[i])}" stroke="var(--ink-2)" stroke-width="2"/>`;
+    s += `<text x="${cx}" y="${H - 5}" text-anchor="middle">${MONTHS[i]}</text>`;
+    s += `<rect data-i="${i}" x="${m.l + bw * i}" y="0" width="${bw}" height="${H}" fill="transparent"/>`;
+  }
+  s += `<line class="axis" x1="${m.l}" x2="${W - m.r}" y1="${base}" y2="${base}"/></svg>`;
+  el.innerHTML = s;
+  el.querySelectorAll('rect[data-i]').forEach(rc => {
+    const i = +rc.dataset.i;
+    rc.addEventListener('mousemove', ev => showTip(`<b>${MONTHS[i]}</b><div class="row"><span>${esc(names[0])}</span><span>${fmt(man[i], d)} ${unit}</span></div>${names[1] ? `<div class="row"><span>${esc(names[1])}</span><span>${fmt(mat[i], d)} ${unit}</span></div>` : ''}<div class="row"><span>${esc(refName)}</span><span>${fmt(ref[i], d)} ${unit}</span></div>`, ev));
+    rc.addEventListener('mouseleave', hideTip);
+  });
+}
+
+function compareChart(el, rows, key) {
+  const ind = IND[key];
+  const items = rows.map(r => ({name: farmName(r), v: ind.v(r), m: ind.m(r), r})).sort((a, b) => (b.v ?? -Infinity) - (a.v ?? -Infinity));
+  const vals = items.flatMap(x => [x.v, x.m]).filter(v => v != null);
+  if (!vals.length) { el.innerHTML = '<div class="empty">Pas de valeur pour cet indicateur.</div>'; return; }
+  const lo = Math.min(0, ...vals), hi = Math.max(...vals) * 1.08 || 1;
+  const W = Math.max(320, el.clientWidth), rowH = 26, labW = Math.min(200, W * 0.34), valW = 70, H = items.length * rowH + 8;
+  const X = v => labW + (v - lo) / (hi - lo) * (W - labW - valW), x0 = X(0);
+  let s = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img">`;
+  items.forEach((it, i) => {
+    const y = 4 + i * rowH, cy = y + rowH / 2;
+    s += `<text class="lbl" x="${labW - 10}" y="${cy + 4}" text-anchor="end">${esc(it.name.length > 28 ? it.name.slice(0, 27) + '…' : it.name)}</text>`;
+    if (it.v != null) {
+      const a = Math.min(x0, X(it.v)), w = Math.abs(X(it.v) - x0);
+      s += `<rect x="${a}" y="${cy - 6}" width="${Math.max(w, 1)}" height="12" fill="var(--s1)" rx="2"/>`;
+      s += `<text class="val" x="${Math.max(x0, X(it.v)) + 6}" y="${cy + 4}">${fmt(it.v, ind.d)}</text>`;
+    }
+    if (it.m != null) s += `<line x1="${X(it.m)}" x2="${X(it.m)}" y1="${cy - 9}" y2="${cy + 9}" stroke="var(--ink-2)" stroke-width="2"/>`;
+    s += `<rect data-i="${i}" x="0" y="${y}" width="${W}" height="${rowH}" fill="transparent" style="cursor:pointer"/>`;
+  });
+  s += `<line class="axis" x1="${x0}" x2="${x0}" y1="0" y2="${H}"/></svg>`;
+  el.innerHTML = s;
+  el.querySelectorAll('rect[data-i]').forEach(rc => {
+    const it = items[+rc.dataset.i];
+    rc.addEventListener('mousemove', ev => showTip(`<b>${esc(it.name)}</b> · ${esc(campLabel(it.r.campagne_donnees))}<div class="row"><span>Ferme</span><span>${fmt(it.v, ind.d)} ${ind.unit}</span></div><div class="row"><span>Repère DEPHY</span><span>${fmt(it.m, ind.d)} ${ind.unit}</span></div>`, ev));
+    rc.addEventListener('mouseleave', hideTip);
+    rc.addEventListener('click', () => openFarm(it.r.sdc_code_dephy, it.r.campagne_donnees));
+  });
+}
+
+/* ---------- vues ---------- */
+function alertsOf(r) {
+  const out = [];
+  const n = k => num(r[k]) || 0;
+  const pl = (x, one, many) => `${x} ${x > 1 ? many : one}`;
+  if (isAlert(r.alerte_description_rotation)) out.push('La rotation est mal décrite (fréquences ou retour à la première culture).');
+  if (isAlert(r.Alerte_IFT_SDC)) out.push("IFT nul, ou IFT chimique au-dessus de 30 : à vérifier.");
+  if (n('alerte_nb_ITK_vide_SdC')) out.push(pl(n('alerte_nb_ITK_vide_SdC'), 'culture sans aucune intervention saisie', 'cultures sans aucune intervention saisie'));
+  if (n('Alerte_Nb_ITK_sans_ferti')) out.push(pl(n('Alerte_Nb_ITK_sans_ferti'), 'culture sans fertilisation', 'cultures sans fertilisation'));
+  if (n('Alerte_Nb_ITK_sans_semis')) out.push(pl(n('Alerte_Nb_ITK_sans_semis'), 'culture sans semis ni plantation', 'cultures sans semis ni plantation'));
+  if (n('Alerte_Nb_ITK_sans_recolte')) out.push(pl(n('Alerte_Nb_ITK_sans_recolte'), 'culture sans récolte', 'cultures sans récolte'));
+  if (n('Alerte_Nb_ITK_sans_w_sol')) out.push(pl(n('Alerte_Nb_ITK_sans_w_sol'), 'culture sans travail du sol', 'cultures sans travail du sol'));
+  if (n('Alerte_Nb_ITK_manque_dose_unite')) out.push(pl(n('Alerte_Nb_ITK_manque_dose_unite'), 'culture avec une dose ou une unité manquante', 'cultures avec une dose ou une unité manquante'));
+  if (n('Alerte_Nb_ITK_verif_biocontrole')) out.push(pl(n('Alerte_Nb_ITK_verif_biocontrole'), 'produit à rattacher à un produit de biocontrôle de référence', 'produits à rattacher à un produit de biocontrôle de référence'));
+  if (isAlert(r.alerte_renseignement_donnees)) out.push('Plusieurs saisies pour la même campagne.');
+  if (/NON RENSEIGN/i.test(r.AB_CONV || '')) out.push('Mode de production (bio ou conventionnel) non renseigné.');
+  return out;
+}
+
+function refCell(v, m, d) {
+  return `<td class="n">${fmt(v, d)}<span class="ref">${m == null ? '&nbsp;' : 'repère ' + fmt(m, d)}</span></td>`;
+}
+
+function viewGroupe() {
+  const rows = groupRows();
+  if (!rows.length) return `<div class="empty">Aucune ferme de ce groupe n'a de données pour cette campagne.</div>`;
+  const abri = rows.filter(r => r.sdc_type_production === 'ABRIS').length;
+  const surf = rows.reduce((s, r) => s + (num(r.surface_theorique_SDC) || 0), 0);
+  const withAlerts = rows.filter(r => alertsOf(r).length).length;
+  const camps = [...new Set(rows.map(r => r.campagne_donnees))];
+  const allCamps = [...S.data.groups.get(S.ir).values()].flat().map(r => r.campagne_donnees).sort((a, b) => campSort(a) - campSort(b));
+  let h = `<div class="tiles">
+    <div class="tile"><div class="k">Fermes</div><div class="v num">${rows.length}</div><div class="s">${abri ? `dont ${abri} sous abri` : 'toutes en plein champ'}</div></div>
+    <div class="tile"><div class="k">Surface suivie</div><div class="v num">${fmt(surf, 2)} ha</div><div class="s">surface des systèmes de culture</div></div>
+    <div class="tile"><div class="k">Campagnes saisies</div><div class="v num">${esc(campLabel(allCamps[0]).split('–')[0])} → ${esc(campLabel(allCamps[allCamps.length - 1]))}</div><div class="s">${S.camp === 'last' ? (camps.length > 1 ? 'le tableau montre la dernière campagne de chaque ferme' : 'le tableau montre la campagne ' + esc(campLabel(camps[0]))) : 'le tableau montre la campagne ' + esc(campLabel(S.camp))}</div></div>
+    <div class="tile"><div class="k">Saisies à reprendre</div><div class="v num">${withAlerts} sur ${rows.length}</div><div class="s">au moins une alerte Agrosyst</div></div>
+  </div>`;
+  h += `<div class="card"><div class="cardhead"><div><h2>Les fermes du groupe</h2><p class="sub">Valeurs par hectare. Sous chaque valeur, le repère DEPHY : la médiane des fermes du réseau qui ont le même type de production. Cliquez sur une ferme pour voir sa fiche.</p></div></div>
+  <div class="tscroll"><table><thead><tr><th>Ferme</th><th>Production</th><th class="n">Surface</th><th class="n">Cultures</th>`;
+  for (const k of GROUP_COLS) h += `<th class="n">${esc(IND[k].short || IND[k].label)}<br><span style="text-transform:none;letter-spacing:0">${IND[k].unit}</span></th>`;
+  h += `<th>Saisie</th></tr></thead><tbody>`;
+  for (const r of rows) {
+    const al = alertsOf(r);
+    h += `<tr class="click" data-code="${esc(r.sdc_code_dephy)}" data-camp="${esc(r.campagne_donnees)}"><td class="name"><b>${esc(farmName(r))}</b><small>${esc(r.sdc_code_dephy)} · ${esc(campLabel(r.campagne_donnees))}</small></td>
+      <td class="nw">${typeLabel(r.sdc_type_production)}</td><td class="n">${fmt(num(r.surface_theorique_SDC), 2)} ha</td><td class="n">${fmt(num(r.nb_cultures_sdc))}</td>`;
+    for (const k of GROUP_COLS) h += refCell(IND[k].v(r), IND[k].m(r), IND[k].d);
+    h += `<td>${al.length ? `<span class="tag warn" title="${esc(al.join('\n'))}">${al.length} alerte${al.length > 1 ? 's' : ''}</span>` : '<span class="tag ok">aucune</span>'}</td></tr>`;
+  }
+  const avg = f => { const a = rows.map(f).filter(v => v != null); return a.length ? a.reduce((x, y) => x + y, 0) / a.length : null; };
+  h += `<tr class="refrow"><td class="name"><b>Moyenne du groupe</b><small>${rows.length} fermes</small></td><td></td><td class="n">${fmt(avg(r => num(r.surface_theorique_SDC)), 2)} ha</td><td class="n">${fmt(avg(r => num(r.nb_cultures_sdc)), 1)}</td>`;
+  for (const k of GROUP_COLS) h += `<td class="n">${fmt(avg(IND[k].v), IND[k].d)}</td>`;
+  h += `<td></td></tr></tbody></table></div></div>`;
+  h += `<div class="card"><div class="cardhead"><div><h2>Comparer les fermes</h2><div class="legend" style="margin-top:6px"><span><i class="sw" style="background:var(--s1)"></i>Ferme</span><span><i class="sw tick"></i>Repère DEPHY</span></div></div>
+    <div class="field"><label for="selCompare">Indicateur</label><select id="selCompare">${(L => COMPARE().map(k => `<option value="${k}"${k === S.compare ? ' selected' : ''}>${esc(L[k])}${IND[k].unit ? ' (' + IND[k].unit + ')' : ''}</option>`).join(''))(fullLabels())}</select></div></div>
+    <div class="chart" id="cmp"></div></div>`;
+  return h;
+}
+
+function farmRows(code) { return S.data.groups.get(S.ir)?.get(code) || []; }
+
+function bulletRow(k, cls, r) {
+  const ind = IND[k], v = ind.v(r), m = ind.m(r);
+  const mx = Math.max(Math.abs(v ?? 0), Math.abs(m ?? 0)) * 1.1 || 1;
+  let delta = '';
+  if (v != null && m != null && Math.abs(m) > 1e-9) { const p = Math.round((v - m) / Math.abs(m) * 100); delta = p === 0 ? 'comme le repère' : (p > 0 ? '+' : '−') + Math.abs(p) + ' %'; }
+  else if (v != null && m != null && Math.abs(m) <= 1e-9 && Math.abs(v) <= 1e-9) delta = 'comme le repère';
+  let label = cls === 'sub' ? 'dont ' + ind.label : ind.label;
+  if (ind.share) { const t = IND[ind.share].v(r); if (v != null && t) label += ` (${fmt(v / t * 100, 0)} %)`; }
+  return `<tr class="${cls || ''}"><td class="lab">${esc(label)}</td><td class="n">${fmt(v, ind.d)}</td><td class="n" style="color:var(--muted)">${fmt(m, ind.d)}</td>
+    <td style="width:28%"><div class="bullet">${v != null && v > 0 ? `<i style="width:${Math.min(100, v / mx * 100)}%"></i>` : ''}${m != null && m > 0 ? `<b style="left:calc(${Math.min(100, m / mx * 100)}% - 1px)"></b>` : ''}</div></td><td class="n delta">${delta}</td></tr>`;
+}
+
+/* Libellé complet d'un indicateur, avec son parent pour les lignes « dont ». */
+function fullLabels() {
+  const out = {};
+  for (const sec of SECTIONS) {
+    let head = '', mid = '';
+    for (const [k, cls] of sec.rows) {
+      const l = IND[k].short || IND[k].label;
+      if (cls === 'sub2') out[k] = `${mid || head}, ${l}`;
+      else if (cls === 'sub') { out[k] = `${head}, ${l}`; mid = out[k]; }
+      else { out[k] = l; head = l; mid = ''; }
+    }
+  }
+  return out;
+}
+
+const cap = s => s ? s.charAt(0) + s.slice(1).toLowerCase() : '';
+function identityCard(r) {
+  const rows = [
+    ['Ferme (domaine Agrosyst)', r.domaine_nom],
+    ['Système de culture', `${r.sdc_nom || ''} (code DEPHY ${r.sdc_code_dephy})`],
+    ['Code convention DEPHY', r.codes_convention_dephy],
+    ['Filière', cap(r.sdc_filiere)],
+    ['Mode de production', r.sdc_type_agriculture || r.AB_CONV],
+    ['Type de production', typeLabel(r.sdc_type_production)],
+    ['Département', `${cap(r.Nom_Departement)} (${r.departement ?? ''})`],
+    ['Région', `${cap(r.Nom_Region)}${r.Nom_Ancienne_Region && r.Nom_Ancienne_Region !== r.Nom_Region ? ` (ancienne région : ${cap(r.Nom_Ancienne_Region)})` : ''}`],
+    ['SAU de la ferme', num(r.sau_domaine) != null ? `${fmt(num(r.sau_domaine), 2)} ha` : null],
+    ['Surface du système de culture', `${fmt(num(r.surface_theorique_SDC), 2)} ha${num(r.sdc_part_sau_domaine) != null ? `, soit ${fmt(num(r.sdc_part_sau_domaine))} % de la SAU` : ''}`],
+    ['Orientation de la ferme (OTEX)', [r.otex_18_nom, r.otex_70_nom].filter(Boolean).join(' · ')],
+    ['Cultures décrites', fmt(num(r.nb_cultures_sdc))],
+    ['Dispositif', r.dispositif_type],
+    ['Ingénieur réseau', irLabel(r.reseau_ir)],
+    ['Ingénieurs territoriaux', String(r.reseaux_it || '').split('|').filter(Boolean).map(irLabel).join(', ').replace(/^It /g, '').replace(/\bIt /g, '')],
+    ['Saisie', `${r.approche_de_calcul || ''}${r.systeme_synthetise_nom ? ` : « ${r.systeme_synthetise_nom} », campagnes ${r.systeme_synthetise_campagnes}` : ''}`],
+    ['Système synthétisé validé', r.systeme_synthetise_validation],
+    ['Système de culture validé', r.sdc_valide],
+    ['Campagne du domaine', r.domaine_campagne],
+  ].filter(([, v]) => v != null && v !== '');
+  return `<div class="card"><div class="cardhead"><div><h2>La ferme et sa saisie</h2></div>
+    <a class="btn small noprint" href="https://agrosyst.fr/practiced/practiced-systems-list.action" target="_blank" rel="noopener">Ouvrir Agrosyst</a></div>
+    <table class="ind"><tbody>${rows.map(([k, v]) => `<tr><td class="lab">${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</tbody></table></div>`;
+}
+
+/* Statistiques sur toutes les campagnes de la ferme (onglet Trajectoire_SDC du classeur). */
+function trajStats(list) {
+  const L = fullLabels();
+  let h = `<details class="more"><summary>Moyenne, minimum et maximum sur les ${list.length} campagnes</summary><div class="tscroll"><table class="ind"><thead><tr><th></th><th class="n">Moyenne</th><th class="n">Minimum</th><th class="n">Maximum</th><th>Unité</th></tr></thead><tbody>`;
+  for (const k of TRAJ_STATS) {
+    const ind = IND[k], vals = list.map(ind.v).filter(v => v != null);
+    const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    h += `<tr><td class="lab">${esc(L[k] || ind.label)}</td><td class="n">${fmt(avg, ind.d)}</td><td class="n">${vals.length ? fmt(Math.min(...vals), ind.d) : '—'}</td><td class="n">${vals.length ? fmt(Math.max(...vals), ind.d) : '—'}</td><td style="color:var(--muted)">${esc(ind.unit)}</td></tr>`;
+  }
+  return h + `</tbody></table></div></details>`;
+}
+
+/* Météo du département pour la dernière année de la campagne, face à la normale de la période de référence. */
+function meteoFor(r) {
+  const year = String(r.campagne_donnees).split('_').pop();
+  const dep = r.Nom_Departement;
+  const period = S.data.meteoRef.get(year);
+  const cur = S.data.meteo.get(`${dep}_${year}`), ref = period ? S.data.meteo.get(`${dep}_${period}`) : null;
+  return {year, period, cur, ref, dep};
+}
+const mser = (row, p) => Array.from({length: 12}, (_, i) => row ? num(row[`${p}_${i + 1}`]) : null);
+const msum = a => a.some(v => v != null) ? a.reduce((s, v) => s + (v || 0), 0) : null;
+const mavg = a => { const b = a.filter(v => v != null); return b.length ? b.reduce((s, v) => s + v, 0) / b.length : null; };
+
+function meteoCard(r) {
+  const M = meteoFor(r);
+  let h = `<div class="card"><div class="cardhead"><div><h2>La météo de l'année</h2><p class="sub">${esc(cap(M.dep))}, ${esc(M.year)}${M.period ? `, comparée à la normale ${esc(M.period)}` : ''}. Données départementales du classeur.</p></div></div>`;
+  if (!M.cur) return h + `<div class="empty">Pas de données météo pour ${esc(cap(M.dep))} en ${esc(M.year)} dans ce fichier.</div></div>`;
+  const rr = mser(M.cur, 'RR'), rrN = mser(M.ref, 'RR'), etp = mser(M.cur, 'ETP'), etpN = mser(M.ref, 'ETP');
+  const tm = mser(M.cur, 'TM'), tmN = mser(M.ref, 'TM'), tn = mser(M.cur, 'TN'), tx = mser(M.cur, 'TX'), um = mser(M.cur, 'UMM');
+  const tnN = mser(M.ref, 'TN'), txN = mser(M.ref, 'TX'), umN = mser(M.ref, 'UMM');
+  const P = msum(rr), PN = msum(rrN), E = msum(etp), EN = msum(etpN);
+  h += `<div class="tiles">
+    <div class="tile"><div class="k">Pluie de l'année</div><div class="v num">${fmt(P)} mm</div><div class="s">normale ${fmt(PN)} mm</div></div>
+    <div class="tile"><div class="k">Évapotranspiration (ETP)</div><div class="v num">${fmt(E)} mm</div><div class="s">normale ${fmt(EN)} mm</div></div>
+    <div class="tile"><div class="k">Bilan hydrique (pluie − ETP)</div><div class="v num">${fmt(P != null && E != null ? P - E : null)} mm</div><div class="s">normale ${fmt(PN != null && EN != null ? PN - EN : null)} mm</div></div>
+    <div class="tile"><div class="k">Température moyenne</div><div class="v num">${fmt(mavg(tm), 1)} °C</div><div class="s">normale ${fmt(mavg(tmN), 1)} °C</div></div>
+  </div><div class="multi">
+    <div class="chart"><h3>Pluie par mois <span style="font-weight:400;color:var(--muted)">mm</span></h3><div class="legend" style="margin-bottom:4px"><span><i class="sw" style="background:var(--s1)"></i>${esc(M.year)}</span><span><i class="sw tick" style="width:12px;height:2px"></i>normale</span></div><div id="mRain"></div></div>
+    <div class="chart"><h3>Température moyenne <span style="font-weight:400;color:var(--muted)">°C</span></h3><div class="legend" style="margin-bottom:4px"><span><i class="sw line"></i>${esc(M.year)}</span><span><i class="sw dash"></i>normale</span></div><div id="mTemp"></div></div>
+  </div>`;
+  const cols = [['Pluie (mm)', rr, rrN, 0], ['ETP (mm)', etp, etpN, 0], ['Temp. moyenne (°C)', tm, tmN, 1], ['Temp. mini (°C)', tn, tnN, 1], ['Temp. maxi (°C)', tx, txN, 1], ['Humidité (%)', um, umN, 0]];
+  h += `<details class="more"><summary>Toutes les valeurs, mois par mois</summary><div class="tscroll"><table class="compact"><thead><tr><th>Mois</th>${cols.map(([l]) => `<th class="n">${l}</th>`).join('')}</tr></thead><tbody>`;
+  for (let i = 0; i < 12; i++) h += `<tr><td>${MONTHS[i]}</td>${cols.map(([, a, n, d]) => `<td class="n">${fmt(a[i], d)}<span class="ref">normale ${fmt(n[i], d)}</span></td>`).join('')}</tr>`;
+  return h + `</tbody></table></div></details></div>`;
+}
+
+function viewFerme() {
+  const g = S.data.groups.get(S.ir);
+  if (!g || !g.size) return '<div class="empty">Ce groupe n\'a pas de ferme.</div>';
+  if (!S.farm || !g.has(S.farm)) S.farm = [...g.keys()].sort((a, b) => farmName(g.get(a)[0]).localeCompare(farmName(g.get(b)[0]), 'fr'))[0];
+  const list = farmRows(S.farm);
+  if (!S.farmCamp || !list.some(x => x.campagne_donnees === S.farmCamp)) S.farmCamp = list[list.length - 1].campagne_donnees;
+  const r = list.find(x => x.campagne_donnees === S.farmCamp);
+  const farms = [...g.entries()].map(([code, l]) => [code, farmName(l[l.length - 1])]).sort((a, b) => a[1].localeCompare(b[1], 'fr'));
+  const al = alertsOf(r);
+  let h = `<div class="controls noprint" style="padding-top:0;margin-bottom:16px">
+    <div class="field"><label for="selFarm">Ferme</label><select id="selFarm">${farms.map(([c, n]) => `<option value="${esc(c)}"${c === S.farm ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></div>
+    <div class="field"><label for="selFarmCamp">Campagne</label><select id="selFarmCamp">${[...list].reverse().map(x => `<option value="${esc(x.campagne_donnees)}"${x.campagne_donnees === S.farmCamp ? ' selected' : ''}>${esc(campLabel(x.campagne_donnees))}</option>`).join('')}</select></div>
+    <button class="btn" id="print" style="margin-left:auto">Imprimer la fiche</button></div>`;
+  h += `<div class="farmhead"><div><h1>${esc(farmName(r))}</h1><div class="facts">
+    <span>Campagne <b>${esc(campLabel(r.campagne_donnees))}</b></span><span><b>${esc(prodLabel(r.situation_production))}</b></span>
+    <span>Surface <b>${fmt(num(r.surface_theorique_SDC), 2)} ha</b></span><span><b>${fmt(num(r.nb_cultures_sdc))}</b> cultures décrites</span>
+    <span>${esc(cap(r.Nom_Departement))} (${esc(r.departement)})</span>
+    <span>${esc(r.sdc_code_dephy)} · ${esc(r.approche_de_calcul)}</span></div></div></div>`;
+  if (al.length) {
+    const rot = isAlert(r.alerte_description_rotation);
+    h += `<div class="alerts"><h3>À reprendre dans Agrosyst</h3>${rot ? '<p>Tant que la rotation n\'est pas corrigée, les chiffres de cette campagne ne sont pas fiables.</p>' : ''}<ul>${al.map(a => `<li>${esc(a)}</li>`).join('')}</ul></div>`;
+  }
+  const effectif = num(r.effectif_SP);
+  h += `<p class="sub" style="color:var(--muted);margin:0 0 12px">Le repère DEPHY est la médiane des fermes du réseau du même type (${esc(prodLabel(r.situation_production).toLowerCase())})${effectif ? `, sur ${fmt(effectif)} saisies` : ''}.</p>`;
+  h += `<div class="grid2">`;
+  for (const sec of SECTIONS) {
+    h += `<div class="card"><h2>${sec.title}</h2><p class="sub">${sec.sub}</p><table class="ind"><thead><tr><th></th><th class="n">Ferme</th><th class="n">Repère</th><th><span class="legend" style="text-transform:none;letter-spacing:0;font-weight:400"><span><i class="sw" style="background:var(--s1)"></i>ferme</span><span><i class="sw tick"></i>repère</span></span></th><th class="n">Écart</th></tr></thead><tbody>`;
+    for (const [k, cls] of sec.rows) h += bulletRow(k, cls, r);
+    h += `</tbody></table>${sec.title === 'Énergie et climat' ? '<p class="sub" style="margin:10px 0 0">L\'eau d\'irrigation n\'est pas affichée : dans cet export, sa colonne recopie celle du carburant.</p>' : ''}</div>`;
+  }
+  h += identityCard(r);
+  h += `</div>`;
+  h += `<div class="card" style="margin-top:16px"><div class="cardhead"><div><h2>D'une campagne à l'autre</h2><p class="sub">${list.length > 1 ? `${list.length} campagnes saisies pour cette ferme.` : 'Une seule campagne saisie pour l\'instant.'}</p></div>
+    <div class="legend"><span><i class="sw line"></i>Ferme</span><span><i class="sw dash"></i>Repère DEPHY</span></div></div><div class="multi">`;
+  for (const k of TRAJ) h += `<div class="chart"><h3>${esc(IND[k].label)} <span style="font-weight:400;color:var(--muted)">${IND[k].unit}</span></h3><div data-traj="${k}"></div></div>`;
+  h += `</div>${trajStats(list)}</div>`;
+  h += `<div class="card"><div class="cardhead"><div><h2>Le travail mois par mois</h2><p class="sub">Heures par hectare, campagne ${esc(campLabel(r.campagne_donnees))}.</p></div>
+    <div class="legend"><span><i class="sw" style="background:var(--s1)"></i>À la main</span><span><i class="sw" style="background:var(--s2)"></i>Tracteur ou outil motorisé</span><span><i class="sw tick" style="width:12px;height:2px"></i>Repère DEPHY (total)</span></div></div><div class="chart" id="months"></div></div>`;
+  h += meteoCard(r);
+  h += cultureTable(S.data.cpBySys.get(r.ID_CODE_DEPHY_CAMPAGNE) || []);
+  return h;
+}
+
+const CP_ALERTS = [['Alerte_Phyto_CP', 'Traitements'], ['Alerte_ferti_azotee_CP', 'Fertilisation azotée'], ['Alerte_semis_culture_principale', 'Semis ou plantation'], ['Alerte_recolte_cult_princi', 'Récolte'],
+  ['Alerte_travail_sol', 'Travail du sol'], ['Alerte_dose_unite_intrants_CP', 'Doses et unités'], ['Alerte_verif_biocontrole_CP', 'Biocontrôle']];
+function cpAlerts(c) { return CP_ALERTS.map(([k]) => c[k]).filter(isAlert); }
+const cpTemps = c => { const a = num(c.tps_travail_manuel_CP), b = num(c.tps_util_materiel_CP); return a == null && b == null ? null : (a || 0) + (b || 0); };
+const CP_MAT = ['janvier', 'fevrier', 'mars', 'avril', 'mai', 'juin', 'juillet', 'aout', 'sept', 'oct', 'nov', 'dec'].map(m => `tps_util_materiel_${m}_CP`);
+const CP_MAN = ['janvier', 'fevrier', 'mars', 'avril', 'mai', 'juin', 'juillet', 'aout', 'septembre', 'octobre', 'novembre', 'decembre'].map(m => `tps_travail_manuel_${m}_CP`);
+
+/* Détail d'une culture : toutes les colonnes de Données_CP, face à la médiane nationale de la même culture
+   dans le même type de production (le classeur n'a pas de repère par culture dans ses données). */
+const CP_DETAIL = [
+  ['Rendement', 'rdt', [['Rendement_total', 'Total'], ['Rdt_Fraiches_Primeur', 'frais ou primeur'], ['Rdt_Circuit_Court', 'circuit court'], ['Rdt_Circuit_Long', 'circuit long'], ['Rdt_Exportation', 'export'],
+    ['Rdt_Production_semences', 'production de semences'], ['Rdt_Toutes_catego_Tous_condition', 'toutes catégories, tous conditionnements'], ['Rdt_Autre', 'autre']]],
+  ['Économie', '€/ha', [['charges_totale_CP', 'Charges (intrants et matériel)'], ['CO_reelles_CP', 'intrants'], ['CM_reelles_CP', 'matériel'], ['cout_mo_tractoriste_CP', 'Main-d\'œuvre au tracteur'], ['cout_mo_manuelle_CP', 'Main-d\'œuvre manuelle']]],
+  ['Temps de travail', 'h/ha', [['_tt', 'Total'], ['tps_travail_manuel_CP', 'à la main'], ['tps_util_materiel_CP', 'tracteur ou outil motorisé'], ['rang_intervention_max', 'Nombre d\'interventions', ''],
+    ['nb_actions_distinctes', 'Nombre d\'actions différentes', ''], ['complexite_CP', 'Complexité de l\'itinéraire', ''], ['nbre_uth_CP', 'UTH par hectare', 'UTH/ha', 3]]],
+  ['IFT', '', [['ift_histo_chimique_tot_CP', 'IFT chimique'], ['ift_histo_chim_tot_hts_CP', 'hors traitement des semences'], ['ift_histo_h_CP', 'herbicides'], ['ift_histo_hh_CP', 'hors herbicides'],
+    ['ift_histo_hh_hors_TS_CP', 'hors herbicides et hors traitement des semences'], ['ift_histo_f_CP', 'fongicides'], ['ift_histo_i_CP', 'insecticides'], ['ift_histo_a_CP', 'autres'], ['ift_histo_ts_CP', 'traitement des semences'], ['ift_histo_biocontrole_CP', 'IFT biocontrôle']]],
+  ['IFT à la cible', '', [['ift_cible_non_mil_chimiq_tot_CP', 'IFT chimique'], ['ift_cible_non_mil_h_CP', 'herbicides'], ['ift_cible_non_mil_hh_CP', 'hors herbicides'], ['ift_cible_non_mil_hh_hors_TS_CP', 'hors herbicides et hors traitement des semences'],
+    ['ift_cible_non_mil_f_CP', 'fongicides'], ['ift_cible_non_mil_i_CP', 'insecticides'], ['ift_cible_non_mil_a_CP', 'autres'], ['ift_cible_non_mil_ts_CP', 'traitement des semences'], ['ift_cible_non_mil_biocontrole_CP', 'IFT biocontrôle']]],
+  ['Produits appliqués', 'kg/ha', [['quantite_mat_active_CP', 'Matières actives épandues'], ['quantite_mat_active_danger_CP', 'toxiques pour l\'utilisateur'], ['quantite_mat_active_CMR_CP', 'CMR'], ['qte_mat_active_danger_env_CP', 'dangereuses pour l\'environnement'],
+    ['quantite_cuivre_CP', 'Cuivre'], ['qte_cuivre_phyto_CP', 'par les traitements'], ['qte_cuivre_engrais_CP', 'par les engrais foliaires'], ['quantite_soufre_CP', 'Soufre'], ['qte_soufre_phyto_CP', 'par les traitements'], ['qte_soufre_engrais_CP', 'par les engrais foliaires'],
+    ['quantite_mat_active_glypho_CP', 'Glyphosate'], ['quantite_mat_active_neonic_CP', 'Néonicotinoïdes'], ['Nb_intrant_dang_CP', 'Produits toxiques pour l\'utilisateur', 'produits', 0], ['Nb_intrant_CMR_CP', 'Produits CMR', 'produits', 0],
+    ['Nb_intrant_dang_env_CP', 'Produits dangereux pour l\'environnement', 'produits', 0], ['nb_intrants_verif_biocontrole', 'Produits dont le rattachement au biocontrôle est à vérifier', 'produits', 0], ['Nb_dose_unite_intrants_manquants', 'Produits sans dose ou sans unité', 'produits', 0]]],
+  ['Lutte biologique et molécules préoccupantes', 'kg/ha', [['rec_moyens_biologiques_CP', 'Recours à la lutte biologique', ''], ['recours_macroorganismes_CP', 'macro-organismes', ''], ['rec_pdts_biot_sansamm_CP', 'produits biotiques sans AMM', ''], ['rec_pdts_abiot_sansamm_CP', 'produits abiotiques sans AMM', ''],
+    ['qte_mat_active_bixafen_CP', 'Bixafen'], ['qte_mat_active_boscalid_CP', 'Boscalid'], ['qte_mat_active_dicamba_CP', 'Dicamba'], ['qte_mat_active_diflufeni_CP', 'Diflufénicanil'], ['qte_mat_active_mancozebe_CP', 'Mancozèbe'],
+    ['qte_mat_active_prosulfo_CP', 'Prosulfocarbe'], ['qte_mat_active_smethola_CP', 'S-métolachlore'], ['qte_mat_active_tebuco_CP', 'Tébuconazole']]],
+  ['Fertilisation', 'u/ha', [['N_CP', 'Azote (N)'], ['N_Mineral_CP', 'minéral'], ['N_Orga_CP', 'organique'], ['P_CP', 'Phosphore (P)'], ['P_Mineral_CP', 'minéral'], ['P_Orga_CP', 'organique'], ['K_CP', 'Potasse (K)'], ['K_Mineral_CP', 'minérale'], ['K_Orga_CP', 'organique']]],
+  ['Énergie et climat', '', [['conso_carburant_CP', 'Carburant', 'L/ha'], ['NRJ_CP', 'Énergie consommée', 'MJ/ha'], ['Energie_Fuel_CP', 'carburant', 'MJ/ha'], ['NRJ_indirecte_CP', 'fabrication des intrants', 'MJ/ha'], ['energie_indirecte_engrais_CP', 'engrais', 'MJ/ha'], ['energie_indirecte_phyto_CP', 'produits phyto', 'MJ/ha'],
+    ['GES_CP', 'Gaz à effet de serre', 'kg éq. CO₂/ha'], ['GES_directes_CP', 'émis sur la ferme', 'kg éq. CO₂/ha'], ['Emissions_directes_Fuel_CP', 'par le carburant', 'kg éq. CO₂/ha'], ['Emissions_directes_Ferti_CP', 'par les engrais, au champ', 'kg éq. CO₂/ha'],
+    ['GES_indirectes_CP', 'émis pour produire ce que la ferme achète', 'kg éq. CO₂/ha'], ['Emissions_indirectes_fuel_CP', 'carburant', 'kg éq. CO₂/ha'], ['emissions_indirectes_engrais_CP', 'engrais', 'kg éq. CO₂/ha'], ['emissions_indirectes_phyto_CP', 'produits phyto', 'kg éq. CO₂/ha']]],
+];
+const cpVal = (c, k) => k === '_tt' ? cpTemps(c) : num(c[k]);
+const natCache = new Map();
+function nationalOf(c) {
+  const key = `${c.Typo_Culture || c.culture_nom}|${c.situation_production}`;
+  if (!natCache.has(key)) natCache.set(key, S.data.cp.filter(x => (x.Typo_Culture || x.culture_nom) === (c.Typo_Culture || c.culture_nom) && x.situation_production === c.situation_production));
+  return natCache.get(key);
+}
+
+function cultureDetail(c) {
+  const nat = nationalOf(c);
+  const sameUnit = nat.filter(x => x.unite_rendement === c.unite_rendement);
+  const ident = [
+    ['Espèces', String(c.ESPECES || '').split('_').join(', ')], ['Classée dans', /^CULTURE A CORRIGER/i.test(c.Typo_Culture || '') ? "à classer (mélange d'espèces)" : c.Typo_Culture], ['Nombre d\'espèces', c.nb_espece],
+    ['Culture intermédiaire', c.ci_nom], ['Précédent', /fictif/i.test(c.precedent_nom || '') ? '' : c.precedent_nom], ['Type de culture', c.culture_type ? cap(c.culture_type) : ''],
+    ['Part de la sole', num(c.assolement_culture_CP) != null ? fmt(num(c.assolement_culture_CP) * 100, 0) + ' %' : ''],
+    ['Parcelle', [c.parcelle_nom, c.zone_nom].filter(Boolean).join(' · ')], ['Surface de la parcelle', num(c.parcelle_surface) != null ? fmt(num(c.parcelle_surface), 2) + ' ha' : ''],
+  ].filter(([, v]) => v != null && v !== '');
+  const al = CP_ALERTS.filter(([k]) => isAlert(c[k]));
+  let h = `<div class="detail"><p class="sub" style="margin:0 0 10px">La colonne « Médiane » est la médiane nationale de la même culture, ${esc(prodLabel(c.situation_production).toLowerCase())}, sur ${fmt(nat.length)} cultures décrites toutes campagnes confondues.</p>`;
+  if (al.length) h += `<div class="alerts" style="margin-bottom:12px"><h3>À reprendre dans Agrosyst</h3><ul>${al.map(([k, l]) => `<li>${esc(l)} : ${esc(c[k])}</li>`).join('')}</ul></div>`;
+  h += `<div class="dgrid"><div><h4>La culture</h4><table class="ind"><tbody>${ident.map(([k, v]) => `<tr><td class="lab">${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')}</tbody></table></div>`;
+  for (const [title, unit, rows] of CP_DETAIL) {
+    h += `<div><h4>${esc(title)}</h4><table class="ind"><thead><tr><th></th><th class="n">Culture</th><th class="n">Médiane</th><th></th></tr></thead><tbody>`;
+    for (const [k, label, u, dd] of rows) {
+      const isR = unit === 'rdt', pool = isR ? sameUnit : nat;
+      const v = cpVal(c, k), m = median(pool.map(x => cpVal(x, k)));
+      const d = dd ?? (/ift|qte_|quantite_|rec_|recours/i.test(k) ? 2 : isR ? 1 : 0);
+      const un = isR ? (RDT_UNIT[c.unite_rendement] || '') : (u ?? unit);
+      const sub = /^\p{Ll}/u.test(label);
+      h += `<tr class="${sub ? 'sub' : ''}"><td class="lab">${esc(label)}</td><td class="n">${fmt(v, d)}</td><td class="n" style="color:var(--muted)">${fmt(m, d)}</td><td style="color:var(--muted);font-size:12px">${esc(un)}</td></tr>`;
+    }
+    h += `</tbody></table></div>`;
+  }
+  h += `<div class="dwide"><h4>Le travail mois par mois <span style="font-weight:400;color:var(--muted)">h/ha</span></h4><div class="legend" style="margin-bottom:4px"><span><i class="sw" style="background:var(--s1)"></i>À la main</span><span><i class="sw" style="background:var(--s2)"></i>Tracteur ou outil motorisé</span><span><i class="sw tick" style="width:12px;height:2px"></i>Médiane nationale (total)</span></div><div class="cpmonths"></div></div>`;
+  return h + `</div></div>`;
+}
+
+function drawCultureMonths(el, c) {
+  const nat = nationalOf(c);
+  const man = CP_MAN.map(k => num(c[k]) || 0), mat = CP_MAT.map(k => num(c[k]) || 0);
+  const ref = CP_MAN.map((k, i) => median(nat.map(x => (num(x[k]) || 0) + (num(x[CP_MAT[i]]) || 0))));
+  monthChart(el, {man, mat, ref, refName: 'Médiane nationale'});
+}
+
+function cultureTable(cps) {
+  let h = `<div class="card"><h2>Les cultures de la rotation</h2><p class="sub">Une ligne par culture décrite dans Agrosyst, dans l'ordre de la rotation. Les valeurs sont par hectare de culture. Cliquez sur une culture pour en voir le détail.</p>`;
+  if (!cps.length) return h + '<div class="empty">Aucune culture décrite pour cette campagne.</div></div>';
+  const rows = [...cps].sort((a, b) => (num(a.culture_rang) ?? 99) - (num(b.culture_rang) ?? 99));
+  S.cpRows = rows;
+  h += `<div class="tscroll"><table class="compact" id="rotation"><thead><tr><th class="n">Rang</th><th>Culture</th><th class="n">Part de la sole</th><th class="n">Rendement</th><th class="n">Temps<br>h/ha</th><th class="n">Charges<br>€/ha</th><th class="n">IFT<br>chimique</th><th class="n">IFT<br>biocontrôle</th><th class="n">Azote<br>u/ha</th><th>Saisie</th></tr></thead><tbody>`;
+  rows.forEach((c, i) => {
+    const al = cpAlerts(c), part = num(c.assolement_culture_CP);
+    h += `<tr class="click cprow" data-i="${i}" aria-expanded="false"><td class="n">${fmt(num(c.culture_rang))}</td><td class="name"><b><span class="chev"></span>${esc(c.culture_nom)}</b>${c.Typo_Culture && c.Typo_Culture !== c.culture_nom ? `<small>${/^CULTURE A CORRIGER/i.test(c.Typo_Culture) ? "à classer (mélange d'espèces)" : esc(c.Typo_Culture)}</small>` : ''}${!c.precedent_nom || /fictif/i.test(c.precedent_nom) ? '' : `<small>après ${esc(c.precedent_nom)}</small>`}</td>
+      <td class="n">${part == null ? '—' : fmt(part * 100, 0) + ' %'}</td><td class="n">${fmt(num(c.Rendement_total), 1)} <span style="color:var(--muted)">${RDT_UNIT[c.unite_rendement] || ''}</span></td>
+      <td class="n">${fmt(cpTemps(c))}</td><td class="n">${fmt(num(c.charges_totale_CP))}</td><td class="n">${fmt(num(c.ift_histo_chimique_tot_CP), 2)}</td><td class="n">${fmt(num(c.ift_histo_biocontrole_CP), 2)}</td><td class="n">${fmt(num(c.N_CP))}</td>
+      <td>${al.length ? `<span class="tag warn" title="${esc(al.join('\n'))}">${al.length} alerte${al.length > 1 ? 's' : ''}</span>` : '<span class="tag ok">aucune</span>'}</td></tr>`;
+  });
+  return h + `</tbody></table></div><p class="sub" style="margin:10px 0 0">Les charges comptent les intrants et le matériel, pas la main-d'œuvre. Survolez une alerte pour la lire.</p></div>`;
+}
+
+function bindRotation() {
+  document.querySelectorAll('#rotation tr.cprow').forEach(tr => tr.addEventListener('click', () => {
+    const open = tr.getAttribute('aria-expanded') === 'true';
+    if (open) { tr.nextElementSibling?.remove(); tr.setAttribute('aria-expanded', 'false'); return; }
+    const c = S.cpRows[+tr.dataset.i];
+    const d = document.createElement('tr'); d.className = 'detailrow';
+    d.innerHTML = `<td colspan="10">${cultureDetail(c)}</td>`;
+    tr.after(d); tr.setAttribute('aria-expanded', 'true');
+    drawCultureMonths(d.querySelector('.cpmonths'), c);
+  }));
+}
+
+function viewCultures() {
+  const sysRows = groupRows();
+  const cps = sysRows.flatMap(r => (S.data.cpBySys.get(r.ID_CODE_DEPHY_CAMPAGNE) || []).map(c => ({c, r})));
+  if (!cps.length) return '<div class="empty">Aucune culture décrite pour ce groupe et cette campagne.</div>';
+  const counts = new Map();
+  for (const {c} of cps) { const t = c.Typo_Culture || c.culture_nom; counts.set(t, (counts.get(t) || 0) + 1); }
+  const toFix = t => /^CULTURE A CORRIGER/i.test(t);
+  const typos = [...counts.entries()].sort((a, b) => toFix(a[0]) - toFix(b[0]) || b[1] - a[1] || a[0].localeCompare(b[0], 'fr'));
+  if (!S.culture || !counts.has(S.culture)) S.culture = typos[0][0];
+  const sel = cps.filter(({c}) => (c.Typo_Culture || c.culture_nom) === S.culture)
+    .sort((a, b) => farmName(a.r).localeCompare(farmName(b.r), 'fr') || (num(a.c.culture_rang) ?? 0) - (num(b.c.culture_rang) ?? 0));
+  let h = `<div class="controls" style="padding-top:0;margin-bottom:16px"><div class="field"><label for="selCulture">Culture</label><select id="selCulture">${typos.map(([t, n]) => `<option value="${esc(t)}"${t === S.culture ? ' selected' : ''}>${toFix(t) ? 'À classer : mélange de plusieurs espèces' : esc(t)} (${n})</option>`).join('')}</select></div></div>`;
+  h += `<div class="card"><h2>${toFix(S.culture) ? 'À classer : mélange de plusieurs espèces' : esc(S.culture)}</h2><p class="sub">Les fermes du groupe qui la cultivent, par hectare de culture. En bas, la médiane de toutes les fermes DEPHY pour cette culture, toutes campagnes confondues : elle est calculée ici et ce n'est pas le repère DEPHY des fiches fermes.</p>
+    <div class="tscroll"><table class="compact"><thead><tr><th>Ferme</th><th>Culture</th><th class="n">Part de la sole</th><th class="n">Rendement</th><th class="n">Temps<br>h/ha</th><th class="n">Charges<br>€/ha</th><th class="n">IFT<br>chimique</th><th class="n">IFT<br>biocontrôle</th><th class="n">Azote<br>u/ha</th></tr></thead><tbody>`;
+  for (const {c, r} of sel) {
+    const part = num(c.assolement_culture_CP);
+    h += `<tr class="click" data-code="${esc(r.sdc_code_dephy)}" data-camp="${esc(r.campagne_donnees)}"><td class="name"><b>${esc(farmName(r))}</b><small>${esc(campLabel(r.campagne_donnees))}</small></td><td class="name">${esc(c.culture_nom)}<small>${typeLabel(c.sdc_type_production).toLowerCase()}</small></td>
+      <td class="n">${part == null ? '—' : fmt(part * 100, 0) + ' %'}</td><td class="n">${fmt(num(c.Rendement_total), 1)} <span style="color:var(--muted)">${RDT_UNIT[c.unite_rendement] || ''}</span></td>
+      <td class="n">${fmt(cpTemps(c))}<span class="ref">dont ${fmt(num(c.tps_travail_manuel_CP))} à la main</span></td><td class="n">${fmt(num(c.charges_totale_CP))}</td><td class="n">${fmt(num(c.ift_histo_chimique_tot_CP), 2)}</td><td class="n">${fmt(num(c.ift_histo_biocontrole_CP), 2)}</td><td class="n">${fmt(num(c.N_CP))}</td></tr>`;
+  }
+  const sits = [...new Set(sel.map(({c}) => c.situation_production))];
+  for (const sp of sits) {
+    const nat = S.data.cp.filter(c => (c.Typo_Culture || c.culture_nom) === S.culture && c.situation_production === sp);
+    const unit = sel.find(({c}) => c.situation_production === sp).c.unite_rendement;
+    const same = nat.filter(c => c.unite_rendement === unit);
+    h += `<tr class="refrow"><td class="name"><b>Médiane nationale</b><small>${fmt(nat.length)} cultures décrites</small></td><td class="name">${esc(prodLabel(sp))}</td>
+      <td class="n">${fmt(median(nat.map(c => num(c.assolement_culture_CP))) * 100, 0)} %</td><td class="n">${fmt(median(same.map(c => num(c.Rendement_total))), 1)} <span>${RDT_UNIT[unit] || ''}</span></td>
+      <td class="n">${fmt(median(nat.map(cpTemps)))}<span class="ref">dont ${fmt(median(nat.map(c => num(c.tps_travail_manuel_CP))))} à la main</span></td><td class="n">${fmt(median(nat.map(c => num(c.charges_totale_CP))))}</td>
+      <td class="n">${fmt(median(nat.map(c => num(c.ift_histo_chimique_tot_CP))), 2)}</td><td class="n">${fmt(median(nat.map(c => num(c.ift_histo_biocontrole_CP))), 2)}</td><td class="n">${fmt(median(nat.map(c => num(c.N_CP))))}</td></tr>`;
+  }
+  h += `</tbody></table></div><p class="sub" style="margin:10px 0 0">Les charges comptent les intrants et le matériel, pas la main-d'œuvre. Les rendements viennent tels quels des saisies Agrosyst : un chiffre étonnant est souvent une erreur d'unité à corriger.</p></div>`;
+  return h;
+}
+
+/* La notice du classeur : colonnes Compartiment, Indicateur (3 niveaux), Unité, Définition, Origine, Seuils. */
+function viewLexique() {
+  const rows = S.data.notice;
+  if (!rows.length) return '<div class="empty">Ce fichier n\'a pas de notice.</div>';
+  let comp = '', l1 = '';
+  let h = `<div class="card"><h2>Lexique des indicateurs</h2><p class="sub">La notice du fichier DEPHY, telle quelle.</p><div class="field noprint" style="margin-bottom:12px"><label for="lexq">Chercher</label><input id="lexq" type="search" class="lexq" placeholder="IFT, cuivre, marge…"></div>
+    <div class="tscroll"><table class="compact" id="lex"><thead><tr><th>Rubrique</th><th>Indicateur</th><th>Unité</th><th>Définition</th><th>Origine</th><th class="n">Seuils</th></tr></thead><tbody>`;
+  for (const c of rows) {
+    const g = i => (c[i] || '').trim();
+    if (g(0)) comp = g(0);
+    if (g(1)) l1 = g(1);
+    const name = [g(1) ? '' : l1, g(1), g(2), g(3)].filter(Boolean).join(' › ');
+    const seuil = [g(7), g(8)].filter(x => x && x !== '/').join(' à ');
+    h += `<tr><td style="color:var(--muted)">${esc(comp)}</td><td class="name" style="min-width:160px"><b>${esc(name)}</b></td><td class="nw">${esc(g(4) === '/' ? '' : g(4))}</td><td>${esc(g(5))}</td><td style="color:var(--muted)">${esc(g(6) === '/' ? '' : g(6))}</td><td class="n">${esc(seuil)}</td></tr>`;
+  }
+  return h + `</tbody></table></div></div>`;
+}
+
+/* Remplace un <select> par un champ où l'on tape pour filtrer (sans accents ni majuscules).
+   Le <select> reste dans la page, caché : c'est lui qui porte la valeur et l'événement change. */
+function combo(sel) {
+  if (!sel || sel.dataset.combo) return;
+  sel.dataset.combo = '1'; sel.hidden = true;
+  const box = document.createElement('div'); box.className = 'combo';
+  const input = document.createElement('input');
+  Object.assign(input, {type: 'text', autocomplete: 'off', spellcheck: false, placeholder: 'Tapez pour chercher…'});
+  input.setAttribute('role', 'combobox'); input.setAttribute('aria-expanded', 'false');
+  input.id = sel.id + 'Search';
+  const lab = document.querySelector(`label[for="${sel.id}"]`); if (lab) lab.htmlFor = input.id;
+  const list = document.createElement('ul'); list.setAttribute('role', 'listbox'); list.hidden = true;
+  box.append(input, list); sel.after(box);
+  const current = () => sel.options[sel.selectedIndex]?.textContent || '';
+  let shown = [], active = 0;
+  const mark = () => [...list.children].forEach((li, i) => li.setAttribute('aria-selected', String(i === active)));
+  const draw = q => {
+    const nq = XlsxLite.norm(q);
+    shown = [...sel.options].map(o => ({v: o.value, t: o.textContent})).filter(o => !nq || XlsxLite.norm(o.t).includes(nq));
+    active = nq ? 0 : Math.max(0, shown.findIndex(o => o.v === sel.value));
+    list.innerHTML = shown.length ? shown.map((o, i) => `<li role="option" data-i="${i}" class="${o.v === sel.value ? 'cur' : ''}">${esc(o.t)}</li>`).join('') : '<li class="none">Aucun résultat</li>';
+    mark();
+    list.hidden = false; input.setAttribute('aria-expanded', 'true');
+    list.children[active]?.scrollIntoView({block: 'nearest'});
+  };
+  const close = () => { list.hidden = true; input.setAttribute('aria-expanded', 'false'); input.value = current(); };
+  const pick = i => {
+    const o = shown[i];
+    close(); input.blur();
+    if (o && o.v !== sel.value) { sel.value = o.v; input.value = current(); sel.dispatchEvent(new Event('change')); }
+  };
+  input.value = current();
+  input.addEventListener('focus', () => { input.select(); draw(''); });
+  input.addEventListener('input', () => draw(input.value));
+  input.addEventListener('keydown', e => {
+    if (list.hidden && (e.key === 'ArrowDown' || e.key === 'Enter')) { e.preventDefault(); draw(''); return; }
+    if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && shown.length) {
+      e.preventDefault(); active = (active + (e.key === 'ArrowDown' ? 1 : -1) + shown.length) % shown.length; mark();
+      list.children[active].scrollIntoView({block: 'nearest'});
+    } else if (e.key === 'Enter') { e.preventDefault(); pick(active); }
+    else if (e.key === 'Escape') { close(); input.blur(); }
+  });
+  list.addEventListener('mousedown', e => { const li = e.target.closest('li[data-i]'); e.preventDefault(); if (li) pick(+li.dataset.i); });
+  input.addEventListener('blur', close);
+  sel._comboSync = () => { input.value = current(); };
+}
+
+/* ---------- rendu ---------- */
+function render() {
+  document.querySelectorAll('nav.tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === S.tab)));
+  $('#fCamp').hidden = S.tab === 'ferme' || S.tab === 'lexique';
+  const view = $('#view');
+  view.innerHTML = S.tab === 'groupe' ? viewGroupe() : S.tab === 'ferme' ? viewFerme() : S.tab === 'lexique' ? viewLexique() : viewCultures();
+  combo($('#selFarm')); combo($('#selCulture')); combo($('#selCompare'));
+  drawCharts();
+  view.querySelectorAll('tr.click[data-code]').forEach(tr => tr.addEventListener('click', () => openFarm(tr.dataset.code, tr.dataset.camp)));
+  $('#selCompare')?.addEventListener('change', e => { S.compare = e.target.value; drawCharts(); });
+  $('#selFarm')?.addEventListener('change', e => { S.farm = e.target.value; S.farmCamp = null; render(); });
+  $('#selFarmCamp')?.addEventListener('change', e => { S.farmCamp = e.target.value; render(); });
+  $('#selCulture')?.addEventListener('change', e => { S.culture = e.target.value; render(); });
+  $('#print')?.addEventListener('click', () => print());
+  bindRotation();
+  $('#lexq')?.addEventListener('input', e => { const q = XlsxLite.norm(e.target.value); document.querySelectorAll('#lex tbody tr').forEach(tr => { tr.hidden = !!q && !XlsxLite.norm(tr.textContent).includes(q); }); });
+}
+
+function drawCharts() {
+  const cmp = $('#cmp');
+  if (cmp) compareChart(cmp, groupRows(), S.compare);
+  if (S.tab === 'ferme' && S.farm) {
+    const list = farmRows(S.farm);
+    const r = list.find(x => x.campagne_donnees === S.farmCamp);
+    document.querySelectorAll('[data-traj]').forEach(el => {
+      const ind = IND[el.dataset.traj];
+      lineChart(el, {labels: list.map(x => campLabel(x.campagne_donnees)), farm: list.map(ind.v), ref: list.map(ind.m), unit: ind.unit, d: ind.d});
+    });
+    const mo = $('#months');
+    if (mo && r) monthChart(mo, {man: M_MAN.map(k => num(r[k]) || 0), mat: M_MAT.map(k => num(r[k]) || 0), ref: M_MED.map(k => num(r[k]))});
+    const M = r && meteoFor(r);
+    if (M && M.cur && $('#mRain')) {
+      monthChart($('#mRain'), {man: mser(M.cur, 'RR').map(v => v || 0), ref: mser(M.ref, 'RR'), refName: 'Normale', names: [M.year], unit: 'mm', d: 0});
+      lineChart($('#mTemp'), {labels: MONTHS, farm: mser(M.cur, 'TM'), ref: mser(M.ref, 'TM'), unit: '°C', d: 1, names: [M.year, 'Normale'], zero: false});
+    }
+    document.querySelectorAll('#rotation tr.cprow[aria-expanded="true"]').forEach(tr => { const el = tr.nextElementSibling?.querySelector('.cpmonths'); if (el) drawCultureMonths(el, S.cpRows[+tr.dataset.i]); });
+  }
+}
+
+function openFarm(code, camp) { S.farm = code; S.farmCamp = camp; S.tab = 'ferme'; store.set('dephy.tab', 'ferme'); render(); scrollTo(0, 0); }
+
+function fillControls() {
+  const irs = [...S.data.groups.keys()].sort((a, b) => irLabel(a).localeCompare(irLabel(b), 'fr'));
+  const saved = store.get('dephy.ir');
+  S.ir = irs.includes(saved) ? saved : irs.includes('IR_CHARON') ? 'IR_CHARON' : irs[0];
+  $('#selIR').innerHTML = irs.map(ir => `<option value="${esc(ir)}"${ir === S.ir ? ' selected' : ''}>${esc(irLabel(ir))} (${S.data.groups.get(ir).size})</option>`).join('');
+  combo($('#selIR')); $('#selIR')._comboSync();
+  fillCamps();
+}
+function fillCamps() {
+  const camps = [...new Set([...S.data.groups.get(S.ir).values()].flat().map(r => r.campagne_donnees))].sort((a, b) => campSort(b) - campSort(a));
+  if (S.camp !== 'last' && !camps.includes(S.camp)) S.camp = 'last';
+  $('#selCamp').innerHTML = `<option value="last">Dernière campagne de chaque ferme</option>` + camps.map(c => `<option value="${esc(c)}"${c === S.camp ? ' selected' : ''}>${esc(campLabel(c))}</option>`).join('');
+}
+
+$('#selIR').addEventListener('change', e => { S.ir = e.target.value; store.set('dephy.ir', S.ir); e.target._comboSync?.(); S.farm = null; S.culture = null; fillCamps(); render(); });
+$('#selCamp').addEventListener('change', e => { S.camp = e.target.value; render(); });
+document.querySelectorAll('nav.tabs button').forEach(b => b.addEventListener('click', () => { S.tab = b.dataset.tab; store.set('dephy.tab', S.tab); render(); }));
+let rz;
+addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => S.data && drawCharts(), 150); });
+
+/* ---------- ouverture du fichier ---------- */
+const idb = {
+  db: null,
+  async open() {
+    if (this.db) return this.db;
+    this.db = await new Promise((ok, ko) => { const q = indexedDB.open('dephy-tableau-de-bord', 1); q.onupgradeneeded = () => q.result.createObjectStore('kv'); q.onsuccess = () => ok(q.result); q.onerror = () => ko(q.error); });
+    return this.db;
+  },
+  async get(k) { try { const db = await this.open(); return await new Promise((ok, ko) => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => ok(q.result); q.onerror = () => ko(q.error); }); } catch { return undefined; } },
+  async set(k, v) { try { const db = await this.open(); await new Promise((ok, ko) => { const t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = ok; t.onerror = () => ko(t.error); }); } catch {} },
+};
+
+function setProgress(f, label) {
+  $('#progress').classList.add('on');
+  $('#progressBar').style.width = Math.round(f * 100) + '%';
+  $('#progressText').textContent = label;
+}
+function showError(msg) { const e = $('#err'); e.textContent = msg; e.hidden = !msg; }
+
+async function loadFile(file) {
+  showError('');
+  if (!/\.xls[xm]$/i.test(file.name)) { showError(`« ${file.name} » n'est pas un fichier Excel .xlsx.`); return; }
+  if (!('DecompressionStream' in window)) { showError('Ce navigateur est trop ancien pour lire le fichier. Ouvrez la page avec Edge, Chrome ou Firefox à jour.'); return; }
+  const sig = `v2|${file.name}|${file.size}|${file.lastModified}`;
+  let raw;
+  const cached = await idb.get('cache');
+  if (cached && cached.sig === sig) raw = cached.raw;
+  else {
+    try {
+      setProgress(0, 'Lecture du fichier…');
+      raw = await readDephy(file, f => setProgress(f, `Lecture du fichier… ${Math.round(f * 100)} % (la première ouverture prend un moment)`));
+    } catch (e) {
+      $('#progress').classList.remove('on');
+      showError(e.message || String(e));
+      return;
+    }
+    setProgress(1, 'Mise en forme…');
+    idb.set('cache', {sig, raw});
+  }
+  if (!raw.extraction) { const m = /(\d{2})(\d{2})(20\d{2})/.exec(file.name); if (m) raw.extraction = `${m[3]}-${m[2]}-${m[1]}`; }
+  S.data = buildModel(raw);
+  S.file = file.name;
+  $('#progress').classList.remove('on');
+  const ext = S.data.extraction ? new Date(S.data.extraction + 'T12:00:00').toLocaleDateString('fr-FR', {day: 'numeric', month: 'long', year: 'numeric'}) : null;
+  $('#fileinfo').innerHTML = `${ext ? `Données Agrosyst du <b style="color:var(--ink);font-weight:600">${ext}</b><br>` : ''}${esc(file.name)}`;
+  $('#foot').textContent = `Données DEPHY strictement confidentielles : à ne pas diffuser en dehors du réseau. · ${file.name}`;
+  $('#loader').hidden = true; $('#app').hidden = false; $('#changeFile').hidden = false;
+  fillControls();
+  render();
+}
+
+/* Dans un dossier : le tableau de bord le plus récent (nom en « Tableau_bord… »), sinon le .xlsx le plus récent. */
+async function loadFromDir(dir) {
+  const found = [];
+  for await (const h of dir.values()) if (h.kind === 'file' && /\.xlsx$/i.test(h.name) && !h.name.startsWith('~$')) found.push(await h.getFile());
+  const tdb = found.filter(f => /tableau.?(de.?)?bord/i.test(f.name));
+  const pool = tdb.length ? tdb : found;
+  if (!pool.length) { showError(`Le dossier « ${dir.name} » ne contient aucun fichier .xlsx.`); return; }
+  pool.sort((a, b) => b.lastModified - a.lastModified);
+  await loadFile(pool[0]);
+}
+
+async function initOpeners() {
+  if ('showDirectoryPicker' in window) {
+    $('#pickDir').hidden = false; $('#dirHint').hidden = false;
+    $('#pickDir').addEventListener('click', async () => {
+      try {
+        const dir = await showDirectoryPicker({id: 'dephy', mode: 'read'});
+        idb.set('dir', dir);
+        await loadFromDir(dir);
+      } catch (e) { if (e.name !== 'AbortError') showError(e.message || String(e)); }
+    });
+    const dir = await idb.get('dir');
+    if (dir && dir.queryPermission) {
+      const btn = $('#reopenDir');
+      btn.textContent = `Rouvrir le dossier « ${dir.name} »`;
+      btn.hidden = false;
+      btn.addEventListener('click', async () => {
+        try {
+          if (await dir.requestPermission({mode: 'read'}) === 'granted') await loadFromDir(dir);
+        } catch (e) { showError(`Le dossier « ${dir.name} » n'est plus accessible. Choisissez-le de nouveau.`); }
+      });
+      try { if (await dir.queryPermission({mode: 'read'}) === 'granted') await loadFromDir(dir); } catch {}
+    }
+  }
+}
+
+$('#pickFile').addEventListener('click', () => $('#fileInput').click());
+$('#fileInput').addEventListener('change', e => { const f = e.target.files[0]; if (f) loadFile(f); e.target.value = ''; });
+$('#changeFile').addEventListener('click', () => { $('#app').hidden = true; $('#loader').hidden = false; $('#changeFile').hidden = true; });
+const drop = $('#drop');
+['dragenter', 'dragover'].forEach(t => document.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(t => document.addEventListener(t, e => { e.preventDefault(); if (t === 'drop' || e.target === document.documentElement) drop.classList.remove('over'); }));
+document.addEventListener('drop', e => { const f = e.dataTransfer?.files?.[0]; if (f) { $('#app').hidden = true; $('#loader').hidden = false; loadFile(f); } });
+initOpeners();
+</script>
+</body>
+</html>
